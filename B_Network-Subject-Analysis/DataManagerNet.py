@@ -7,7 +7,7 @@ class FileManager():
     def __init__(self):
         self.ParentDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/B_Analysis'
         self.DataDir = os.path.join(self.ParentDir, 'D_FunctCon')
-        self.ResultDir = os.path.join(self.ParentDir, 'G_NetworkMeasures')
+        self.ResultDir = os.path.join(self.ParentDir, 'G_NetworkMeasures', 'A_Subject-Analysis')
         self._getFCList()
         self._getLowFCList()
 

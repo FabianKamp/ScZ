@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 from itertools import combinations
-import NetworkFunctions.corr_functions as corr
-import NetworkFunctions.from_networkx as fnx
+import corr_functions as corr
+import from_networkx as fnx
 
 class NetworkError(Exception):
     """
@@ -12,7 +12,6 @@ class NetworkError(Exception):
 class network:
     """Defines input as network
     :parameter pd.DataFrame that contains the adjacency matrix of the network, np.ndarray timecourse matrix
-    TODO we can not use the absolute values, correct for where they are needed
     TODO correct clust coeff
     """
     def __init__(self, Adjacency_Matrix, node_names=None,tc=[]):
@@ -69,7 +68,7 @@ class network:
         adj_mat = self.adj_mat.copy()
 
         if not np.all(adj_mat>=0):          # Check for negative values
-            print('Take absolute value to compute shortest path length.')
+            print('Shortest Path: Compute absolute value to compute shortest path length.')
             adj_mat = np.abs(adj_mat)       # Take absolute value of adjacency matrix
 
         if paths and nx: raise NetworkError('Paths has not yet been implemented using networkX. Swith nx or paths to False')
@@ -135,13 +134,16 @@ class network:
         Calculate sum of triangles edge weights around each node in network.
         The edge weights are normalized with the largest weight in the network
         :return: n dimensional pd.Series
-        # TODO: Implement networkx version
         """
         if self.triangles is not None:
             return self.triangles
 
         adj_mat = self.adj_mat.copy()                               # Create copy of adjacency mat
-        if not np.all(adj_mat>=0): raise ValueError('Adjancency matrix elements must be positiv.')
+
+        if not np.all(adj_mat>=0):
+            print('Number Triangles: Not all edges are positive. Compute absolute edge values.')
+            adj_mat = np.abs(adj_mat)
+
         triangles = pd.Series(np.zeros(self.number_nodes), index=self.nodes)
 
         if normalize:                                               # Normalizes the weights by the maximum weight.
@@ -254,9 +256,10 @@ class network:
             print('Excluding isolated nodes, i.e. nodes with shortest average path length of zero.')
             node_avg_distance[node_avg_distance==0] = np.nan
 
-        close_cent = 1 / node_avg_distance                      # Inverts the average shortest path
-        close_cent = pd.Series(close_cent, index=self.nodes)    # Converts to pd.Series
-        return close_cent
+        close_centr = 1 / node_avg_distance                      # Inverts the average shortest path
+        close_centr = pd.Series(close_centr, index=self.nodes)    # Converts to pd.Series
+
+        return close_centr
 
     def betweenness_centrality(self):
         """
@@ -280,7 +283,6 @@ class network:
 
     def small_worldness(self, nrandnet=1, niter=10, seed=None, nx=True, method='weighted_random', tc=[], normalize=False):
         """
-        #TODO rewrite this method, because its too long
         Computes small worldness (sigma) of network
         :param: seed: float or integer which sets the seed for random network generation
                 niter: int of number of iterations that should be done during network generation
@@ -305,7 +307,7 @@ class network:
 
         else:
 
-            if nrandnet < 1: raise ValueError("Minimum one iteration.")
+            if nrandnet < 1: raise ValueError("Minimum one random network.")
             random_clust_coeff = []
             random_char_path = []
             for i in range(nrandnet):
@@ -318,9 +320,8 @@ class network:
                 random_net = network(random_adj)                                    # Convert random adj to network
                 print(f'{i+1} random network generated.')
 
-                random_clust_coeff.append(random_net.clust_coeff(node_by_node=False, normalize=normalize, nx=nx))           # Compute clustering coeff of random network
-                random_char_path.append(random_net.char_path(node_by_node=False, nx=nx))                                # Compute characteristic pathlength of random network
-
+                random_clust_coeff.append(random_net.clust_coeff(node_by_node=False, normalize=normalize, nx=True))           # Compute clustering coeff of random network
+                random_char_path.append(random_net.char_path(node_by_node=False, nx=True))                                # Compute characteristic pathlength of random network
 
             random_clust_coeff = np.mean(random_clust_coeff)                        # Take average of random cluster coefficients
             random_char_path = np.mean(random_char_path)                            # Take average of random characteristic paths

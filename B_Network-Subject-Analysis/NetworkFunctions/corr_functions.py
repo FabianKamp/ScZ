@@ -12,7 +12,7 @@ def covariance_mat(M):
         raise Exception('Input Matrix has to be np.array or pd.DataFrame')
     M=np.array(M)                               # Converts to np.array
     M=M-np.mean(M, axis=1, keepdims=True)           # Subtracts row means from each row
-    C=np.matmul(M, M.T)/M.shape[1]             # Matrix multiplication yields the covariance matrix
+    C=np.matmul(M, M.T)/(M.shape[1]-1)             # Matrix multiplication yields the covariance matrix
     return C
 
 def pearson_corr(M):
