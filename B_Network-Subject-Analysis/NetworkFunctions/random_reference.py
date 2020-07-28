@@ -1,13 +1,18 @@
 import pandas as pd
 import numpy as np
-import network as net
+import random
 import corr_functions as func
-import scipy.stats as stats
 
 def weighted_random(adjacency, niter):
-    import random
+    """
+    Computes the weighted random reference network following the aglorithm from Sporns et al.
+    :param adjacency:
+    :param niter:
+    :return:
+    """
 
-    adj = adjacency.copy()
+    adjacency = np.asarray(adjacency)
+    adj = np.copy(adjacency)
     num_nodes = adj.shape[0]
 
     for iter in range(niter):
@@ -35,7 +40,7 @@ def weighted_random(adjacency, niter):
 
     num_neg = np.sum(adj<0)/2
     sign_switches = np.sum(adj != adjacency)/4
-    print(int(num_neg), ' negative edges. ', int(sign_switches), ' sign switches were performed. ')
+    print(num_neg, ' negative edges. ', sign_switches, ' sign switches were performed. ')
 
     # Weight randomization
     # Positive connections / negative connections
@@ -45,11 +50,7 @@ def weighted_random(adjacency, niter):
     neg_adj = np.array(adj, copy=True)
     neg_adj[neg_adj >= 0] = 0
 
-    adj_list = [pos_adj, neg_adj]
-    random_adj_list = []
-
-    for signed_adj in adj_list:
-
+    def weight_randomization(signed_adj):
         strengths = np.sum(signed_adj, axis=-1)  # Computes the strength of each node
         list_edges = [(i, j) for i in range(num_nodes) for j in range(i + 1, num_nodes) if
                       signed_adj[i, j] != 0 and i != j]
@@ -58,6 +59,7 @@ def weighted_random(adjacency, niter):
                         signed_adj[i, j] != 0 and i != j]
         sorted_weights = sorted(list_weights)[::-1]  # Sort from highest to lowest value
         random_adj = np.zeros(signed_adj.shape)
+
         for edge in range(num_edges):
             r_strengths = np.sum(random_adj, axis=-1)
             e = {(i, j): (strengths[i] - r_strengths[i]) * (strengths[j] - r_strengths[j]) for i, j in list_edges}
@@ -73,14 +75,14 @@ def weighted_random(adjacency, niter):
             list_edges.remove((i, j))
             del sorted_weights[rank]
 
-        random_adj_list.append(random_adj)
+        return random_adj
 
-    pos_random = random_adj_list[0]
-    neg_random = random_adj_list[1]
+    pos_random = weight_randomization(pos_adj)
+    neg_random = weight_randomization(neg_adj)
+
     random_adj = pos_random + neg_random
-    adj = random_adj
 
-    return adj
+    return random_adj
 
 def hqs(DataMat):
     """

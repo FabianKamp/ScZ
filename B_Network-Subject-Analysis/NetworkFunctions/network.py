@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 from itertools import combinations
-import corr_functions as corr
-import from_networkx as fnx
+import NetworkFunctions.corr_functions as corr
+import NetworkFunctions.from_networkx as fnx
 
 class NetworkError(Exception):
     """
@@ -19,8 +19,6 @@ class network:
             raise ValueError('Input must be numpy.ndarray or panda.DataFrame.')
         if len(Adjacency_Matrix.shape) != 2 or Adjacency_Matrix.shape[0] != Adjacency_Matrix.shape[1]:  # Check if the Adjancency Matrix has the right shape
             raise Exception('Adjacency matrix must be a 2 dimensional square matrix.')
-        if not np.all(Adjacency_Matrix>=0):
-            print('Attention: Not all elements of adjacency matrix are positiv.')                                  # Check if the values of ajdancency matrix are positiv
 
         if isinstance(Adjacency_Matrix, np.ndarray) and node_names is not None:
             if not isinstance(node_names, list): raise ValueError('node_names must be list.')
@@ -56,7 +54,7 @@ class network:
 
         return degree
 
-    def shortestpath(self, paths=False, nx=True):
+    def shortestpath(self, paths=False, nx=True, normalize=False):
         """
         Calculate the shortest path between all nodes in the network using Dijstrak Algorithm:
         https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm. If nx is set to true uses the networkX implementation.
@@ -68,19 +66,28 @@ class network:
         adj_mat = self.adj_mat.copy()
 
         if not np.all(adj_mat>=0):          # Check for negative values
-            print('Shortest Path: Compute absolute value to compute shortest path length.')
+            print('Shortest Path: Compute absolute value for shortest path length.')
             adj_mat = np.abs(adj_mat)       # Take absolute value of adjacency matrix
 
-        if paths and nx: raise NetworkError('Paths has not yet been implemented using networkX. Swith nx or paths to False')
+        if paths and nx:
+            raise NetworkError('Paths has not yet been implemented using networkX. Swith nx or paths to False')
 
         if paths and self.shortest_path is not None:                    # Returns shortest paths if already existing
             return self.shortest_path
         elif not paths and self.shortest_path_length is not None:       # Returns shortest path lengths if already existing
             return self.shortest_path_length
 
-        adj_mat[adj_mat!=0] = 1/adj_mat[adj_mat != 0]                   # Inverting all nonzero values
+        # Normalize the edge weights with the maximum
+        if normalize:
+            max_weight = np.max(adj_mat.to_numpy())
+            adj_mat /= max_weight
 
-        if nx:                                                          # NetworkX implementation of the shortest path length
+        #Inverting Non-zero values
+        inv_edges = np.copy(1 / adj_mat[adj_mat != 0])
+        adj_mat[adj_mat!=0] = inv_edges
+
+        # NetworkX implementation of the shortest path length
+        if nx:
             if self.shortest_path_length is not None:
                 print('Shortest path length has already been computed.')
                 return self.shortest_path_length
@@ -90,7 +97,8 @@ class network:
             self.shortest_path_length = shortestdist_df
             return shortestdist_df
 
-        else:           # Manual implementation of Dijstrak Algorithm
+        # Manual implementation of Dijstrak Algorithm
+        else:
             shortestdist_df = pd.DataFrame(np.zeros(adj_mat.shape), columns=self.nodes, index=self.nodes)  # Initialize Path matrix and distance matrix
             shortestpath_df = pd.DataFrame(np.empty(adj_mat.shape, dtype=str), columns=self.nodes, index=self.nodes)
 
@@ -122,9 +130,9 @@ class network:
                     shortestpath_df.loc[:,n]=node_set.loc[:,'Path']
                     shortestpath_df.loc[n,:]=node_set.loc[:,'Path']
             self.shortest_path_length = shortestdist_df
+            self.shortest_path = shortestpath_df
 
             if paths:
-                self.shortest_path = shortestpath_df
                 return shortestpath_df
             else:
                 return shortestdist_df
@@ -166,12 +174,13 @@ class network:
 
         return triangles
 
-    def char_path(self, node_by_node=False, nx=True):
+    def char_path(self, node_by_node=False, nx=True, normalize=False):
         """
         Calculate the characteristic path length of the network
         :return: Dictionary with average node distance np.array and characteristic path length np.float object
         """
-        sum_shrtpath = np.sum(np.asarray(self.shortestpath(nx=nx)), axis=-1)                      # Sums Shortest Path Dataframe along axis -1
+
+        sum_shrtpath = np.sum(np.asarray(self.shortestpath(nx=nx, normalize=normalize)), axis=-1)                      # Sums Shortest Path Dataframe along axis -1
         avg_shrtpath_node = sum_shrtpath / (self.number_nodes-1)                                    # Divide each element in sum array by n-1 regions
         char_pathlength = np.sum(avg_shrtpath_node) / self.number_nodes
 
@@ -320,14 +329,15 @@ class network:
                 random_net = network(random_adj)                                    # Convert random adj to network
                 print(f'{i+1} random network generated.')
 
-                random_clust_coeff.append(random_net.clust_coeff(node_by_node=False, normalize=normalize, nx=True))           # Compute clustering coeff of random network
-                random_char_path.append(random_net.char_path(node_by_node=False, nx=True))                                # Compute characteristic pathlength of random network
+                random_clust_coeff.append(random_net.clust_coeff(node_by_node=False, normalize=normalize, nx=nx))       # Compute clustering coeff of random network
+                random_char_path.append(random_net.char_path(node_by_node=False, normalize=False,nx=nx))                # Compute characteristic pathlength of random network
 
             random_clust_coeff = np.mean(random_clust_coeff)                        # Take average of random cluster coefficients
             random_char_path = np.mean(random_char_path)                            # Take average of random characteristic paths
 
-        sig_num = (self.clust_coeff(node_by_node=False, normalize=True, nx=nx)/random_clust_coeff)          # Compute numerator
-        sig_den = (self.char_path(node_by_node=False, nx=nx)/random_char_path)                               # Compute denumerator
+        sig_num = (self.clust_coeff(node_by_node=False, normalize=normalize, nx=nx)/random_clust_coeff)                 # Compute numerator
+        sig_den = (self.char_path(node_by_node=False, normalize=False, nx=nx)/random_char_path)                         # Compute denumerator
+
         sigma = sig_num/sig_den                                                     # Compute sigma
 
         return sigma
