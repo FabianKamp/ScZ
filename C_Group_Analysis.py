@@ -1,4 +1,4 @@
-from utils.FileManager import FileManager
+from utils.FileManager import MEGManager
 import Z_config as config
 import dabest
 import matplotlib.pyplot as plt
@@ -13,7 +13,7 @@ def mean_diff(Measure, CarrierFrequency, ci = 95, plot=True):
     :param plot: boolean, specifies if plot should be generated
     :return: mean difference between groups
     """
-    M = FileManager()
+    M = MEGManager()
     df = M.loadGraphMeasures(suffix='Group_'+ Measure)
 
     FreqKey = str(CarrierFrequency)

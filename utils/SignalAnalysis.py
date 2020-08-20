@@ -68,7 +68,6 @@ class Signal():
         self.fsample = self.fsample * downsamplingFactor
         self.NumberRegions, self.TimePoints = self.Signal.shape
 
-
     def getOrthFC(self, Limits, LowPass=True):
         # Filter signal
         FilteredSignal = self.getFrequencyBand(Limits)
@@ -119,15 +118,57 @@ class Signal():
         FC *= (1 / 0.577)
         return FC
 
+    def getOrthEnvelope(self, Index, ReferenceIndex, Limits, LowPass:True):
+        """
+        Function to compute the Orthogonalized Envelope of the indexed signal with respect to a reference Signal.
+        Uses same code as Orthogonalization part of the getOrthFC function but does not compute the correlation.
+        Is used create a plot the orthogonalized Envelope.
+        :param Index:
+        :param ReferenceIndex:
+        :param Limits:
+        :param LowPass:
+        :return:
+        """
+        # Filter signal
+        FilteredSignal = self.getFrequencyBand(Limits)
+
+        # Get complex signal
+        n_fft = next_fast_len(self.TimePoints)
+        ComplexSignal = hilbert(FilteredSignal, N=n_fft, axis=-1)[:, :self.TimePoints]
+
+        # Get signal envelope and conjugate
+        SignalEnv = np.abs(ComplexSignal)
+        SignalConj = ComplexSignal.conj()
+
+        # Low pass filter envelope
+        if LowPass:
+            ReferenceEnv = filter_data(SignalEnv[ReferenceIndex], self.fsample, 0, config.LowPassFreq, fir_window='hamming',
+                                 verbose=False)
+        else:
+            ReferenceEnv = SignalEnv
+
+        OrthSignal = (ComplexSignal[Index] * (SignalConj / SignalEnv)).imag
+        OrthEnv = np.abs(OrthSignal)
+        OrthEnv = OrthEnv[ReferenceIndex]
+
+        if LowPass:
+            OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
+                                  verbose=False)
+
+        return OrthEnv, ReferenceEnv
+
+
+
+
 class Envelope(Signal):
     """
     Class to compute the CCD and FC of the Envelope
     """
     def __init__(self, Envelope):
-        self.Envelope = Envelope
+        self.Signal = Envelope
 
     def getMetastability(self):
-        CentrLowEnv = self.Envelope - np.mean(self.Envelope, axis=-1, keepdims=True) # substract mean from Low Envelope
+        CentrLowEnv = self.Signal - np.mean(self.Signal, axis=-1, keepdims=True) # substract mean from Low Envelope
         ComplexLowEnv = hilbert(CentrLowEnv, axis=-1) # converts low pass filtered envelope to complex signal
         LowEnvPhase = np.angle(ComplexLowEnv)
 
@@ -146,7 +187,7 @@ class Envelope(Signal):
         from scipy.signal import hilbert
         print('Calculating CCD.')
 
-        analytic_signal = hilbert(self.Envelope, axis=-1)
+        analytic_signal = hilbert(self.Signal, axis=-1)
         phase = np.angle(analytic_signal)
 
         nnodes = phase.shape[0]
@@ -173,11 +214,11 @@ class Envelope(Signal):
                 CCD_mat[t1, t2] = prod / magn  # Normalize vector product and save in matrix
                 CCD_mat[t2, t1] = CCD_mat[t1, t2]  # Make matrix symmetrical
 
-        return CCD_mat
+        return CCD_mat.astype('float32')
 
     def getFC(self, mode='pearson'):
         if mode == 'pearson':
-            M = self.Envelope
+            M = self.Signal
             n = M.shape[0]
             P = np.array([np.corrcoef((M[i, :], M[j, :]))[0, 1] for i in range(n) for j in range(n)])
             return P.reshape(n, n)

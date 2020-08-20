@@ -1,10 +1,11 @@
 # File to configure the pipeline settings
 
 # Specify Parent Directory and Data Directory
-ParentDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/B_Analysis'
-DataDir = ParentDir + r'/C_rsMEG-Data'
+ParentDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/D_Analysis'
+DataDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/A_rsMEG-Data'
+DTIDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/B_DTI-Data'
 
-InfoDir = ParentDir +  r'/Z_Info'
+InfoDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/Z_Info'
 InfoFileName = 'Info.xlsx'
 InfoFile = InfoDir + r'/' + InfoFileName
 

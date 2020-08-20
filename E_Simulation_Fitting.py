@@ -1,12 +1,12 @@
 from deap import creator, base, tools
 import random
 from multiprocessing import Pool
-from ModelEvolution import evWC
+from utils.ModelEvolution import evWC
 import numpy as np
-import LoadData
+from utils.FileManager import EvolutionManager
 from utils.func import timer
 from itertools import repeat
-import matplotlib.pyplot as plt
+import Z_config as config
 
 ##########################
 # General Configurations #
@@ -20,7 +20,7 @@ clock.tic()
 
 # Set the CarrierFreq and the Subject number to fit the Model to
 CarrierFreq = 20
-Subject = 'S126'
+Group = 'SCZ'
 
 # genetic algorithm settings
 NPop = 1
@@ -84,21 +84,17 @@ log = tools.Logbook()
 
 # Creating the Population
 def main():
-    from SignalAnalysis import Envelope
+    from utils.SignalAnalysis import Envelope
     if __name__ == '__main__':
         # Load DTI Matrices for healthy and scz (functional connectivity is not loaded because we use CCd to fit the Model)
-        empDTI = LoadData.DTIdataset(Group="SCZ")
+        M = EvolutionManager(Group="SCZ")
+        empDTI = M.loadDTIDataset(normalize=True)
         Dmat = empDTI.LengthMat
         Cmat = empDTI.Cmat
 
         # Get the empirical MEG - CCD matrix
-        fsample = 400
-        MEGlowEnv = LoadData.MEGlowEnv(Subject, CarrierFreq, DataDir=None)
-
-        Duration = MEGlowEnv.shape[-1]*(1/fsample) # Duration in seconds
-        downNum = 300
-        dLowMag = Envelope(MEGlowEnv).downsampleSignal(downNum)
-        empCCD = Envelope(dLowMag).getCCD()
+        empCCD = M.loadavgCCD(FreqBand=CarrierFreq)
+        Duration = empCCD * config.DownFreq
 
         # Configure Settings for the Wilson Cowan Model
         Settings = {'evolKeys': ParamKeys, 'Duration': Duration, 'CarrierFreq': CarrierFreq,

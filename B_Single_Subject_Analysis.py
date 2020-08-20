@@ -1,4 +1,4 @@
-from utils.FileManager import FileManager
+from utils.FileManager import MEGManager
 import utils.NetworkFunctions.network as net
 import Z_config as config
 import numpy as np
@@ -55,7 +55,7 @@ def computeNetMeasure(Measures):
     :param mode: 'low-FC' or 'FC'
     """
     # Load List of Data with FileManager
-    M = FileManager()
+    M = MEGManager()
     # Convert Measures into list
     Measures = list(Measures)
     # Choose correct Subjectlist
@@ -67,12 +67,7 @@ def computeNetMeasure(Measures):
             # Initiate subject specific subdirectory
             ResultDict[Subject] = {}
 
-            if config.Standard:
-                FrequencyBands = config.StandardBands
-            else:
-                FrequencyBands = config.CarrierFrequencies
-
-            for FreqBand, Limits in FrequencyBands.items():
+            for FreqBand, Limits in config.FrequencyBands.items():
                 print(f'{FreqBand} Frequency Band, Subject {Subject}')
                 if not M.exists(suffix=config.mode, SubjectNum=Subject, CarrierFreq=FreqBand):
                     print(f'Skipped Subject {Subject}. Frequency Band {FreqBand} missing')
