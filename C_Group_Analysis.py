@@ -22,7 +22,7 @@ def mean_diff(Measure, CarrierFrequency, ci = 95, plot=True):
     if plot:
         Plot = analysis.mean_diff.plot();
         # Save Plot in Plot Directory
-        M.savePlot(Plot, suffix=Measure+'_Mean-Diff-Plot_'+config.mode, CarrierFreq=CarrierFrequency);
+        M.savePlot(Plot, suffix=Measure+'_Mean-Diff-Plot', CarrierFreq=CarrierFrequency);
         plt.close('all')
     return Results
 

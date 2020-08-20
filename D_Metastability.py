@@ -5,14 +5,13 @@ from utils.SignalAnalysis import Signal, Envelope
 # Load File Manager that handles file dependencies.
 M = MEGManager()
 
-
 SubjectList = M.getSubjectList()
 MetaDict = {}
 
 for Subject in SubjectList:
     print(f'Processing Subject: {Subject}')
     # Loads Data of one Subject at a time
-    SubjectData = M.loadData(Subject)
+    SubjectData = M.loadSignal(Subject)
     # Convert to Signal type
     SubjectSignal = Signal(SubjectData['Signal'], fsample=SubjectData['SampleFreq'])
     # Get Resampling Size and Downsample Signal
@@ -31,6 +30,6 @@ for Subject in SubjectList:
         MetaDict[Subject][FreqBand] = Metastability
 
 # Save Subject specific Metastability Dictionary
-M.saveDataFrame(MetaDict, suffix='Metastability')
+M.safeMetastability(MetaDict)
 
 print('Preprocessing done.')

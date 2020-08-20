@@ -5,6 +5,7 @@ import glob
 import numpy as np
 import pandas as pd
 from utils.SignalAnalysis import Signal, Envelope
+import matplotlib.pyplot as plt
 
 class FileManager():
     """Class to manage all file dependencies of this project.
@@ -18,7 +19,7 @@ class FileManager():
         self.ControlIDs = self.getGroupIDs('CON')
         self.FEPIDs = self.getGroupIDs('FEP')
 
-    def _createFileName(self, suffix, SubjectNum=None, CarrierFreq=None):
+    def _createFileName(self, suffix='', SubjectNum=None, CarrierFreq=None):
         """
         Function to create FileName string. The file name and location is inferred from the suffix.
         Creates directories if not existing.
@@ -28,6 +29,10 @@ class FileManager():
         :param mkdir: boolean, creates new directories if true
         :return: FilePath string
         """
+        # config.mode contains lowpass-FC or FC. Is added to suffix.
+        if config.mode not in suffix:
+            suffix = suffix + '_' + config.mode
+
         if SubjectNum is not None and CarrierFreq is not None:
             FileName = SubjectNum + '_Carrier-Freq-' + str(CarrierFreq) + '_' + suffix
         elif SubjectNum is None and CarrierFreq is not None:
@@ -133,7 +138,7 @@ class MEGManager(FileManager):
         SubjectData = {'SampleFreq': fsample, 'Signal': signal.T} #Transposes the signal
         return SubjectData
 
-    def loadFC(self, suffix, SubjectNum, CarrierFreq):
+    def loadFC(self, SubjectNum, CarrierFreq, suffix=''):
         FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
         FilePath = os.path.join(self.FcDir, SubjectNum, FileName)
         FC = np.load(FilePath)
@@ -145,7 +150,7 @@ class MEGManager(FileManager):
         DataFrame = pd.read_pickle(FilePath)
         return DataFrame
 
-    def saveFC(self, Data, suffix, SubjectNum, CarrierFreq):
+    def saveFC(self, Data, SubjectNum, CarrierFreq, suffix=''):
         FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
         SubjectDir = os.path.join(self.FcDir, SubjectNum)
         if not os.path.isdir(SubjectDir):
@@ -158,11 +163,10 @@ class MEGManager(FileManager):
         FilePath = os.path.join(self.NetMeasures, self._createFileName(suffix) + '.pkl')
         df.to_pickle(FilePath)
 
-    def safeMetastability(self, DataDict, suffix):
+    def safeMetastability(self, DataDict, suffix='Metastability'):
         df = self._createDataFrame(DataDict)
         FilePath = os.path.join(self.MetaDir, self._createFileName(suffix) + '.pkl')
         df.to_pickle(FilePath)
-        pass
 
     def _createDataFrame(self, DataDict):
         for SubjectNum in DataDict.keys():
@@ -178,7 +182,7 @@ class MEGManager(FileManager):
             GroupIDs = self.FEPIDs
         else:
             raise Exception('Group not found')
-
+        AvgCCD = None
         for n, Subject in enumerate(GroupIDs):
             # Load Subject Data
             MEGData = self.loadSignal(Subject)
@@ -193,7 +197,7 @@ class MEGManager(FileManager):
             # Compute CCD
             CCD = Envelope(MEGEnvelope).getCCD()
             # Compute Average CCD
-            if n == 0:
+            if AvgCCD is None:
                 AvgCCD = CCD.copy()
             else:
                 # Take smaller CCD shape if not equal
@@ -208,9 +212,31 @@ class MEGManager(FileManager):
 class PlotManager(FileManager):
     def __init__(self):
         super().__init__()
+        self.PlotDir = os.path.join(self.ParentDir, 'P_Plots')
 
+    def safeEnvelopePlot(self, fig, suffix, SubjectNum, CarrierFreq):
+        FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        Directory = os.path.join(self.PlotDir, 'Orthogonalized-Envelope')
+        FilePath = os.path.join(Directory, FileName + '.png')
+        plt.savefig(fig, FilePath)
 
-    pass
+    def safeFCPlot(self, fig, suffix, SubjectNum, CarrierFreq):
+        FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        Directory = os.path.join(self.PlotDir, 'Functional-Connectivity')
+        FilePath = os.path.join(Directory, FileName + '.png')
+        plt.savefig(fig, FilePath)
+
+    def safeMeanDiffPlot(self, fig, suffix):
+        FileName = super()._createFileName(suffix)
+        Directory = os.path.join(self.PlotDir, 'Graph-Measures')
+        FilePath = os.path.join(Directory, FileName + '.png')
+        plt.savefig(fig, FilePath)
+
+    def safeAvgCCD(self, fig, suffix, CarrierFreq):
+        FileName = super()._createFileName(suffix, CarrierFreq=CarrierFreq)
+        Directory = os.path.join(self.PlotDir, 'Coherence-Connectivity-Dynamics')
+        FilePath = os.path.join(Directory, FileName + '.png')
+        plt.savefig(fig, FilePath)
 
 class EvolutionManager(FileManager):
     """This class loads the DTI data from the SCZ-Dataset."""

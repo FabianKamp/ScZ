@@ -13,7 +13,7 @@ for Subject in SubjectList:
     print(f'Processing Subject: {Subject}')
 
     # Loads Data of one Subject at a time
-    SubjectData = M.loadData(Subject)
+    SubjectData = M.loadSignal(Subject)
     # Convert to Signal type
     SubjectSignal = Signal(SubjectData['Signal'], fsample=SubjectData['SampleFreq'])
     # Downsample Signal
@@ -37,6 +37,6 @@ for Subject in SubjectList:
             raise Exception('Mode not found. Change mode to lowpass-FC or FC in config file.')
 
         # Save
-        M.saveNumpy(FC, suffix=config.mode, SubjectNum=Subject, CarrierFreq=FreqBand)
+        M.saveFC(FC, SubjectNum=Subject, CarrierFreq=FreqBand)
 
 print('Preprocessing done.')

@@ -77,7 +77,7 @@ def computeNetMeasure(Measures):
                 # Save to Result Dictionary
                 ResultDict[Subject][FreqBand] = getGraphMeasure(FC, Measure)
         # Save Results to DataFrame
-        M.saveDataFrame(ResultDict, suffix=Measure+'_'+config.mode)
+        M.safeGraphMeasures(ResultDict, suffix=Measure)
 
 # Execute Script
 computeNetMeasure(config.GraphMeasures)
