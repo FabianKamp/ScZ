@@ -29,26 +29,39 @@ class FileManager():
         :param mkdir: boolean, creates new directories if true
         :return: FilePath string
         """
-        # config.mode contains lowpass-FC or FC. Is added to suffix.
+        # config.mode contains lowpass or no-lowpass. Is added to suffix.
+        if not suffix:
+            suffix = config.mode
         if config.mode not in suffix:
             suffix = suffix + '_' + config.mode
+
 
         if SubjectNum is not None and CarrierFreq is not None:
             FileName = SubjectNum + '_Carrier-Freq-' + str(CarrierFreq) + '_' + suffix
         elif SubjectNum is None and CarrierFreq is not None:
             FileName = 'Carrier-Freq-' + str(CarrierFreq) + '_' + suffix
-        elif config.Standard:
-            FileName = 'Standard-Freq-Bands_' + suffix
+        elif CarrierFreq is None:
+            if config.Standard:
+                FileName = 'Standard-Freq-Bands_' + suffix
         else:
             FileName = suffix
 
         return FileName
 
+    def _createFilePath(self, *args):
+        Directory = ''
+        for arg in args[:-1]:
+            Directory = os.path.join(Directory, arg)
+
+        if not os.path.isdir(Directory):
+            os.mkdir(Directory)
+
+        FilePath = os.path.join(Directory, args[-1])
+        return FilePath
+
     def exists(self, suffix, SubjectNum=None, CarrierFreq=None):
         FileName = self._createFileName(suffix, SubjectNum, CarrierFreq)
         if glob.glob(os.path.join(self.ParentDir, f'**/{FileName}.*'), recursive=True):
-            print(f'{FileName} file exists. ',
-                  '{SubjectNum}, Carrier Frequency {CarrierFreq}.')
             return True
         else:
             return False
@@ -105,7 +118,7 @@ class MEGManager(FileManager):
         super().__init__()
         # Create the Directory Paths
         self.FcDir = os.path.join(self.ParentDir, 'D_FunctCon')
-        self.AmplEnvDir = os.path.join(self.ParentDir, 'E_AmplEnv')
+        self.MSTDir = os.path.join(self.ParentDir, 'MinimalSpanningTree')
         self.MetaDir = os.path.join(self.ParentDir, 'F_Metastability')
         self.SubjectAnalysisDir = os.path.join(self.ParentDir, 'G_GraphMeasures', 'A_SubjectAnalysis')
         self.NetMeasures = os.path.join(self.ParentDir, 'G_GraphMeasures', 'A_NetMeasures')
@@ -134,109 +147,118 @@ class MEGManager(FileManager):
         SubjectFile = os.path.join(self.DataDir, Subject + '_AAL94_norm.mat')
         DataFile = mat73.loadmat(SubjectFile)
         fsample = int(DataFile['AAL94_norm']['fsample'])
-        signal = DataFile['AAL94_norm']['trial'][0]
-        SubjectData = {'SampleFreq': fsample, 'Signal': signal.T} #Transposes the signal
-        return SubjectData
+        signal = DataFile['AAL94_norm']['trial'][0] # Signal has to be transposed
+        return signal.T, fsample
 
     def loadFC(self, SubjectNum, CarrierFreq, suffix=''):
-        FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
-        FilePath = os.path.join(self.FcDir, SubjectNum, FileName)
+        FileName = super()._createFileName(suffix=suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FilePath = os.path.join(self.FcDir, SubjectNum, FileName + '.npy')
         FC = np.load(FilePath)
         return FC
 
+    def loadMST(self, SubjectNum, CarrierFreq, suffix='MST'):
+        FileName = super()._createFileName(suffix=suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FilePath = os.path.join(self.MSTDir, SubjectNum, FileName + '.npy')
+        MST = np.load(FilePath)
+        return MST
+
     def loadGraphMeasures(self, suffix):
-        FileName = super()._createFileName(suffix, SubjectNum=None)
-        FilePath = os.path.join(self.NetMeasures, FileName)
+        FileName = super()._createFileName(suffix=suffix)
+        FilePath = os.path.join(self.NetMeasures, FileName + '.pkl')
         DataFrame = pd.read_pickle(FilePath)
         return DataFrame
 
-    def saveFC(self, Data, SubjectNum, CarrierFreq, suffix=''):
-        FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
-        SubjectDir = os.path.join(self.FcDir, SubjectNum)
-        if not os.path.isdir(SubjectDir):
-            os.mkdir(SubjectDir)
-        FilePath = os.path.join(SubjectDir, FileName + '.npy')
+    def loadMetastability(self, suffix='Metastability'):
+        FileName = super()._createFileName(suffix=suffix)
+        FilePath = os.path.join(self.MetaDir, FileName + '.pkl')
+        DataFrame = pd.read_pickle(FilePath)
+        return DataFrame
+
+    def saveFC(self, Data, SubjectNum, CarrierFreq, suffix='FC'):
+        FileName = super()._createFileName(suffix=suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FilePath = super()._createFilePath(self.FcDir, SubjectNum, FileName + '.npy')
         np.save(FilePath, Data)
 
-    def safeGraphMeasures(self, DataDict, suffix):
-        df = self._createDataFrame(DataDict)
-        FilePath = os.path.join(self.NetMeasures, self._createFileName(suffix) + '.pkl')
+    def saveMST(self, MST, SubjectNum, CarrierFreq, suffix='MST'):
+        FileName = super()._createFileName(suffix=suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FilePath = super()._createFilePath(self.MSTDir, SubjectNum, FileName + '.npy')
+        np.save(FilePath, MST)
+
+
+    def saveGraphMeasures(self, DataDict, suffix):
+        FileName = super()._createFileName(suffix=suffix)
+        FilePath = super()._createFilePath(self.NetMeasures, FileName + '.pkl')
+        if self.exists(FilePath):
+            df = self._updateDataFrame(FilePath, DataDict)
+        else:
+            df = self._createDataFrame(DataDict)
+
         df.to_pickle(FilePath)
 
-    def safeMetastability(self, DataDict, suffix='Metastability'):
-        df = self._createDataFrame(DataDict)
-        FilePath = os.path.join(self.MetaDir, self._createFileName(suffix) + '.pkl')
+    def saveMetastability(self, DataDict, suffix='Metastability'):
+        FileName = self._createFileName(suffix=suffix)
+        FilePath = os.path.join(self.MetaDir, FileName + '.pkl')
+        if self.exists(suffix):
+            df = self._updateDataFrame(FilePath, DataDict)
+        else:
+            df = self._createDataFrame(DataDict)
         df.to_pickle(FilePath)
 
     def _createDataFrame(self, DataDict):
+        """
+        Creates DataFrame from DataDictionary using the index as orientation and
+        adds relevant information to the DataFrame - Group, etc.
+        :param DataDict: dictionary to convert into DataFrame
+        :return: DataFrame
+        """
         for SubjectNum in DataDict.keys():
             Group = self.getGroup(SubjectNum)
-            DataDict[SubjectNum].update({'Group':Group})
+            DataDict[SubjectNum].update({'Group': Group})
         df = pd.DataFrame.from_dict(DataDict, orient='index')
         return df
 
-    def loadavgCCD(self, Group, FreqBand):
-        if Group == 'Control':
-            GroupIDs = self.ControlIDs
-        elif Group == 'FEP':
-            GroupIDs = self.FEPIDs
-        else:
-            raise Exception('Group not found')
-        AvgCCD = None
-        for n, Subject in enumerate(GroupIDs):
-            # Load Subject Data
-            MEGData = self.loadSignal(Subject)
-            # Convert to Signal Class
-            MEGSignal = Signal(MEGData['Signal'], fsample=MEGData['SampleFreq'])
-            # Downsample Data
-            ResNum = MEGSignal.getResampleNum(TargetFreq=config.DownFreq)
-            MEGSignal.downsampleSignal(resample_num=ResNum)
-            # Compute Envelope
-            Limits = config.FrequencyBands[FreqBand]
-            MEGEnvelope = MEGSignal.getLowPassEnvelope(Limits=Limits)
-            # Compute CCD
-            CCD = Envelope(MEGEnvelope).getCCD()
-            # Compute Average CCD
-            if AvgCCD is None:
-                AvgCCD = CCD.copy()
-            else:
-                # Take smaller CCD shape if not equal
-                if AvgCCD.shape != CCD.shape:
-                    samples = min(AvgCCD.shape[1], CCD.shape[1])
-                    AvgCCD = AvgCCD[:,:samples]
-                    CCD = CCD[:,:samples]
-                AvgCCD = (AvgCCD*n + CCD)/(n+1)
+    def _updateDataFrame(self, FilePath, DataDict):
+        """
+        Updates the DataFrame that is safed under the FilePath
+        :param FilePath: FilePath of DataFrame
+        :param DataDict: DataDictionary that is used to update DataFrame
+        :return: Updated DataFrame
+        """
+        previous = pd.read_pickle(FilePath)
+        previous = previous.to_dict('index')
+        updated = previous.update(DataDict)
+        df = self._createDataFrame(updated)
+        return df
 
-        return AvgCCD
-
-class PlotManager(FileManager):
+class PlotManager(MEGManager):
     def __init__(self):
         super().__init__()
         self.PlotDir = os.path.join(self.ParentDir, 'P_Plots')
 
-    def safeEnvelopePlot(self, fig, suffix, SubjectNum, CarrierFreq):
+    def saveEnvelopePlot(self, fig, SubjectNum, CarrierFreq, suffix):
         FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
-        Directory = os.path.join(self.PlotDir, 'Orthogonalized-Envelope')
-        FilePath = os.path.join(Directory, FileName + '.png')
-        plt.savefig(fig, FilePath)
+        FilePath = super()._createFilePath(self.PlotDir, 'Orthogonalized-Envelope', FileName + '.png')
+        fig.savefig(FilePath)
 
-    def safeFCPlot(self, fig, suffix, SubjectNum, CarrierFreq):
+    def saveFCPlot(self, fig, SubjectNum, CarrierFreq, suffix):
         FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
-        Directory = os.path.join(self.PlotDir, 'Functional-Connectivity')
-        FilePath = os.path.join(Directory, FileName + '.png')
-        plt.savefig(fig, FilePath)
+        FilePath = super()._createFilePath(self.PlotDir, 'Functional-Connectivity', FileName + '.png')
+        fig.savefig(FilePath)
 
-    def safeMeanDiffPlot(self, fig, suffix):
+    def saveMetaPlot(self, fig, suffix):
         FileName = super()._createFileName(suffix)
-        Directory = os.path.join(self.PlotDir, 'Graph-Measures')
-        FilePath = os.path.join(Directory, FileName + '.png')
-        plt.savefig(fig, FilePath)
+        FilePath = super()._createFilePath(self.PlotDir, 'Metastability', FileName + '.png')
+        fig.savefig(FilePath)
 
-    def safeAvgCCD(self, fig, suffix, CarrierFreq):
+    def saveMeanDiffPlot(self, fig, CarrierFreq, suffix):
         FileName = super()._createFileName(suffix, CarrierFreq=CarrierFreq)
-        Directory = os.path.join(self.PlotDir, 'Coherence-Connectivity-Dynamics')
-        FilePath = os.path.join(Directory, FileName + '.png')
-        plt.savefig(fig, FilePath)
+        FilePath = super()._createFilePath(self.PlotDir, 'Graph-Measures', FileName + '.png')
+        fig.savefig(FilePath)
+
+    def saveAvgCCD(self, fig, CarrierFreq, suffix):
+        FileName = super()._createFileName(suffix, CarrierFreq=CarrierFreq)
+        FilePath = super()._createFilePath(self.PlotDir, 'Coherence-Connectivity-Dynamics', FileName + '.png')
+        fig.savefig(FilePath)
 
 class EvolutionManager(FileManager):
     """This class loads the DTI data from the SCZ-Dataset."""
@@ -304,6 +326,40 @@ class EvolutionManager(FileManager):
             mat += m
         mat = mat/len(Mats)
         return mat
+
+    def loadavgCCD(self, Group, FreqBand):
+        if Group == 'Control':
+            GroupIDs = self.ControlIDs
+        elif Group == 'FEP':
+            GroupIDs = self.FEPIDs
+        else:
+            raise Exception('Group not found')
+        AvgCCD = None
+        for n, Subject in enumerate(GroupIDs):
+            # Load Subject Data
+            Signal, fsample = self.loadSignal(Subject)
+            # Convert to Signal Class
+            MEGSignal = Signal(Signal, fsample)
+            # Downsample Data
+            ResNum = MEGSignal.getResampleNum(TargetFreq=config.DownFreq)
+            MEGSignal.downsampleSignal(resample_num=ResNum)
+            # Compute Envelope
+            Limits = config.FrequencyBands[FreqBand]
+            MEGEnvelope = MEGSignal.getLowPassEnvelope(Limits=Limits)
+            # Compute CCD
+            CCD = Envelope(MEGEnvelope).getCCD()
+            # Compute Average CCD
+            if AvgCCD is None:
+                AvgCCD = CCD.copy()
+            else:
+                # Take smaller CCD shape if not equal
+                if AvgCCD.shape != CCD.shape:
+                    samples = min(AvgCCD.shape[1], CCD.shape[1])
+                    AvgCCD = AvgCCD[:,:samples]
+                    CCD = CCD[:,:samples]
+                AvgCCD = (AvgCCD*n + CCD)/(n+1)
+
+        return AvgCCD
 
 
 

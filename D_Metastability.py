@@ -5,7 +5,10 @@ from utils.SignalAnalysis import Signal, Envelope
 # Load File Manager that handles file dependencies.
 M = MEGManager()
 
-SubjectList = M.getSubjectList()
+if config.SubjectList:
+    SubjectList = config.SubjectList
+else:
+    SubjectList = M.getSubjectList()
 MetaDict = {}
 
 for Subject in SubjectList:
@@ -30,6 +33,6 @@ for Subject in SubjectList:
         MetaDict[Subject][FreqBand] = Metastability
 
 # Save Subject specific Metastability Dictionary
-M.safeMetastability(MetaDict)
+M.saveMetastability(MetaDict)
 
 print('Preprocessing done.')

@@ -1,4 +1,10 @@
 # File to configure the pipeline settings
+# Configure path to network toolbox
+NetDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/D_Analysis/A_Scripts/utils/NetworkFunctions'
+
+# adds NetDir to sys.path, network module can be imported easily
+import sys
+sys.path.append(NetDir)
 
 # Specify Parent Directory and Data Directory
 ParentDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/D_Analysis'
@@ -9,10 +15,12 @@ InfoDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/Z_Info'
 InfoFileName = 'Info.xlsx'
 InfoFile = InfoDir + r'/' + InfoFileName
 
+SubjectList = ''
+
 # TODO: Specify if standard frequency bands are used and if lowpass filter is applied to signal envelope
 
 Standard = True
-mode = 'lowpass-FC' #'FC' or 'lowpass-FC'
+mode = 'lowpass-FC' #'no-lowpass'
 
 if Standard:
     # Specify dictionary of the standard frequency bands

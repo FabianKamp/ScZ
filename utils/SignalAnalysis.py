@@ -17,6 +17,9 @@ class Signal():
         self.fsample = fsample
         self.NumberRegions, self.TimePoints = mat.shape
 
+    def __getitem__(self, index):
+        return self.Signal[index]
+
     def getFrequencyBand(self, Limits):
         """
         Band pass filters signal from each region
@@ -53,7 +56,10 @@ class Signal():
         downsamplingFactor = TargetFreq/self.fsample
         return int(self.TimePoints * downsamplingFactor)
 
-    def downsampleSignal(self, resample_num):
+    def downsampleSignal(self, resample_num=None, TargetFreq=None):
+        if TargetFreq is not None:
+            resample_num = self.getResampleNum(TargetFreq)
+
         from scipy.signal import resample
         if self.Signal.shape[1] < resample_num:
             raise Exception('Target sample size must be smaller than original frequency')
@@ -118,7 +124,7 @@ class Signal():
         FC *= (1 / 0.577)
         return FC
 
-    def getOrthEnvelope(self, Index, ReferenceIndex, Limits, LowPass:True):
+    def getOrthEnvelope(self, Index, ReferenceIndex, FreqBand, LowPass=True):
         """
         Function to compute the Orthogonalized Envelope of the indexed signal with respect to a reference Signal.
         Uses same code as Orthogonalization part of the getOrthFC function but does not compute the correlation.
@@ -129,6 +135,8 @@ class Signal():
         :param LowPass:
         :return:
         """
+        Limits = config.FrequencyBands[FreqBand]
+
         # Filter signal
         FilteredSignal = self.getFrequencyBand(Limits)
 

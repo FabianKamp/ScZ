@@ -1,6 +1,6 @@
 from utils.FileManager import MEGManager
-import utils.NetworkFunctions.network as net
 import Z_config as config
+import network as net
 import numpy as np
 
 def getGraphMeasure(FC, Measure):
@@ -27,7 +27,7 @@ def getGraphMeasure(FC, Measure):
         Result = Network.char_path(node_by_node=False)
     elif 'AvgNeighDegree' == Measure:
         # Get Avg neighbour degree
-        Result = Network.avg_neigh_degree()
+        Result = Network.avg_neigh_degree(avg=True)
     elif 'Assortativity' == Measure:
         # Get Assortativity
         Result = Network.assortativity()
@@ -49,38 +49,54 @@ def getGraphMeasure(FC, Measure):
 
     return Result
 
-def computeNetMeasure(Measures):
+def computeNetMeasure(Measures, MST=False):
     """
     :param Measures: Graph Measure as defined in configuration file
-    :param mode: 'low-FC' or 'FC'
     """
     # Load List of Data with FileManager
     M = MEGManager()
     # Convert Measures into list
     Measures = list(Measures)
     # Choose correct Subjectlist
-    SubjectList = M.getFCList()
+    if config.SubjectList:
+        SubjectList = config.SubjectList
+    else:
+        SubjectList = M.getFCList()
 
     for Measure in Measures:
         ResultDict = {}
         for Subject in SubjectList:
             # Initiate subject specific subdirectory
             ResultDict[Subject] = {}
-
             for FreqBand, Limits in config.FrequencyBands.items():
                 print(f'{FreqBand} Frequency Band, Subject {Subject}')
-                if not M.exists(suffix=config.mode, SubjectNum=Subject, CarrierFreq=FreqBand):
+                if not M.exists(suffix='', SubjectNum=Subject, CarrierFreq=FreqBand):
                     print(f'Skipped Subject {Subject}. Frequency Band {FreqBand} missing')
                     continue
-                # Load FC
-                FC = M.loadFC(suffix=config.mode, SubjectNum=Subject, CarrierFreq=FreqBand)
-                # Save to Result Dictionary
-                ResultDict[Subject][FreqBand] = getGraphMeasure(FC, Measure)
+                if MST:
+                    if not M.exists(suffix='MST', SubjectNum=Subject, CarrierFreq=FreqBand):
+                        # Load FC
+                        FC = M.loadFC(SubjectNum=Subject, CarrierFreq=FreqBand)
+                        # Compute and save MST
+                        mst = net.network(FC).MST()
+                        M.saveMST(mst, SubjectNum=Subject, CarrierFreq=FreqBand)
+                    else:
+                        mst = M.loadMST()
+                    ResultDict[Subject][FreqBand] = getGraphMeasure(mst, Measure)
+                else:
+                    # Load FC
+                    FC = M.loadFC(SubjectNum=Subject, CarrierFreq=FreqBand)
+                    # Save to Result Dictionary
+                    ResultDict[Subject][FreqBand] = getGraphMeasure(FC, Measure)
         # Save Results to DataFrame
-        M.safeGraphMeasures(ResultDict, suffix=Measure)
+        if MST:
+            suffix=Measure+'_MST'
+        else:
+            suffix=Measure
+        M.saveGraphMeasures(ResultDict, suffix=suffix)
 
 # Execute Script
-computeNetMeasure(config.GraphMeasures)
+computeNetMeasure(['AvgNeighDegree', 'ClustCoeff', 'AvgCloseCentrality', 'GlobEfficiency'])
 
 
 
