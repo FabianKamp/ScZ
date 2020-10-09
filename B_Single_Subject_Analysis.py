@@ -81,7 +81,7 @@ def computeNetMeasure(Measures, MST=False):
                         mst = net.network(FC).MST()
                         M.saveMST(mst, SubjectNum=Subject, CarrierFreq=FreqBand)
                     else:
-                        mst = M.loadMST()
+                        mst = M.loadMST(SubjectNum=Subject, CarrierFreq=FreqBand)
                     ResultDict[Subject][FreqBand] = getGraphMeasure(mst, Measure)
                 else:
                     # Load FC
@@ -96,7 +96,8 @@ def computeNetMeasure(Measures, MST=False):
         M.saveGraphMeasures(ResultDict, suffix=suffix)
 
 # Execute Script
-computeNetMeasure(['AvgNeighDegree', 'ClustCoeff', 'AvgCloseCentrality', 'GlobEfficiency'])
+computeNetMeasure(['AvgDegree', 'AvgCharPath', 'AvgNeighDegree', 'Assortativity', 'Transitivity',
+                  'ClustCoeff', 'AvgCloseCentrality', 'GlobEfficiency'], MST=True)
 
 
 

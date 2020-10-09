@@ -1,9 +1,11 @@
 from utils.FileManager import PlotManager
 import Z_config as config
 import dabest
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-def mean_diff(Measures, CarrierFrequency, ci = 95, plot=True):
+def mean_diff(Measures, CarrierFrequency, ci = 95, plot=True, MST=False):
     """
     This function calculates the mean difference of the graphmeasure between Con and FEP group.
     Uses the DABEST library.
@@ -15,7 +17,11 @@ def mean_diff(Measures, CarrierFrequency, ci = 95, plot=True):
     """
     M = PlotManager()
     for Measure in Measures:
-        df = M.loadGraphMeasures(suffix=Measure)
+        if MST:
+            suffix = Measure+'_MST'
+        else:
+            suffix = Measure
+        df = M.loadGraphMeasures(suffix=suffix)
 
         FreqKey = str(CarrierFrequency)
         analysis = dabest.load(df, idx=("Control", "FEP"), x='Group', y=FreqKey, ci=ci)
@@ -23,10 +29,13 @@ def mean_diff(Measures, CarrierFrequency, ci = 95, plot=True):
         if plot:
             Plot = analysis.mean_diff.plot()
             # Save Plot in Plot Directory
-            M.saveMeanDiffPlot(Plot, suffix=Measure+'_Mean-Diff-Plot', CarrierFreq=CarrierFrequency)
+            suffix = Measure + '_Mean-Diff-Plot'
+            if MST:
+                suffix = suffix + '_MST'
+            M.saveMeanDiffPlot(Plot, suffix=suffix, CarrierFreq=CarrierFrequency)
             plt.close('all')
     #return Results
 
 for FreqBand, Limits in config.FrequencyBands.items():
-    mean_diff(['GlobEfficiency'], CarrierFrequency=FreqBand)
+    mean_diff(['AvgDegree', 'AvgCharPath', 'AvgNeighDegree', 'Assortativity', 'Transitivity', 'ClustCoeff', 'AvgCloseCentrality', 'GlobEfficiency'], CarrierFrequency=FreqBand, MST=True)
 #'ClustCoeff', 'AvgCloseCentrality', 'GlobEfficiency'
