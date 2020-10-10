@@ -19,33 +19,25 @@ class FileManager():
         self.ControlIDs = self.getGroupIDs('CON')
         self.FEPIDs = self.getGroupIDs('FEP')
 
-    def _createFileName(self, suffix='', SubjectNum=None, CarrierFreq=None):
+    def _createFileName(self, suffix, **kwargs):
         """
         Function to create FileName string. The file name and location is inferred from the suffix.
         Creates directories if not existing.
         :param suffix: name suffix of file
-        :param SubjectNum: subject ID
+        :param Sub: subject ID
         :param CarrierFreq: Carrier Frequency of Signal if existing
-        :param mkdir: boolean, creates new directories if true
         :return: FilePath string
         """
         # config.mode contains lowpass or no-lowpass. Is added to suffix.
-        if not suffix:
-            suffix = config.mode
         if config.mode not in suffix:
             suffix = suffix + '_' + config.mode
 
+        for key, item in kwargs:
+            suffix = key + '-' + str(item) + '_' + suffix
+        if 'CarrierFreq' not in kwargs and config.Standard: 
+            suffix = 'Standard-Freq-Bands_' + suffix
 
-        if SubjectNum is not None and CarrierFreq is not None:
-            FileName = SubjectNum + '_Carrier-Freq-' + str(CarrierFreq) + '_' + suffix
-        elif SubjectNum is None and CarrierFreq is not None:
-            FileName = 'Carrier-Freq-' + str(CarrierFreq) + '_' + suffix
-        elif CarrierFreq is None:
-            if config.Standard:
-                FileName = 'Standard-Freq-Bands_' + suffix
-        else:
-            FileName = suffix
-
+        FileName = suffix
         return FileName
 
     def _createFilePath(self, *args):
@@ -60,7 +52,7 @@ class FileManager():
         return FilePath
 
     def exists(self, suffix, SubjectNum=None, CarrierFreq=None):
-        FileName = self._createFileName(suffix, SubjectNum, CarrierFreq)
+        FileName = self._createFileName(suffix, Sub=SubjectNum, CarrierFreq=CarrierFreq)
         if glob.glob(os.path.join(self.ParentDir, f'**/{FileName}.*'), recursive=True):
             return True
         else:
@@ -117,11 +109,11 @@ class MEGManager(FileManager):
     def __init__(self):
         super().__init__()
         # Create the Directory Paths
-        self.FcDir = os.path.join(self.ParentDir, 'D_FunctCon')
+        self.FcDir = os.path.join(self.ParentDir, 'FunctCon')
         self.MSTDir = os.path.join(self.ParentDir, 'MinimalSpanningTree')
-        self.MetaDir = os.path.join(self.ParentDir, 'F_Metastability')
-        self.SubjectAnalysisDir = os.path.join(self.ParentDir, 'G_GraphMeasures', 'A_SubjectAnalysis')
-        self.NetMeasures = os.path.join(self.ParentDir, 'G_GraphMeasures', 'A_NetMeasures')
+        self.MetaDir = os.path.join(self.ParentDir, 'Metastability')
+        self.SubjectAnalysisDir = os.path.join(self.ParentDir, 'GraphMeasures', 'SubjectAnalysis')
+        self.NetMeasures = os.path.join(self.ParentDir, 'GraphMeasures', 'NetMeasures')
 
     def getSubjectList(self):
         """Gets the subject numbers of the MEG - Datafiles.

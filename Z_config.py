@@ -1,26 +1,31 @@
+import os
 # File to configure the pipeline settings
-# Configure path to network toolbox
-NetDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/D_Analysis/A_Scripts/utils/NetworkFunctions'
+rsMEGDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG'
+
+# Configure path to repos and scripts
+repoDir = os.path.join(rsMEGDir, 'repos')
+NetDir = os.path.join(repoDir, 'Network')
+
 
 # adds NetDir to sys.path, network module can be imported easily
 import sys
 sys.path.append(NetDir)
 
 # Specify Parent Directory and Data Directory
-ParentDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/D_Analysis'
-DataDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/A_rsMEG-Data'
-DTIDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/B_DTI-Data'
+ParentDir = os.path.join(rsMEGDir, 'Analysis')
+DataDir = os.path.join(rsMEGDir, 'rsMEG-Data')
+DTIDir = os.path.join(rsMEGDir, 'DTI-Data')
 
-InfoDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG/Z_Info'
+InfoDir = os.path.join(rsMEGDir, 'Info')
 InfoFileName = 'Info.xlsx'
-InfoFile = InfoDir + r'/' + InfoFileName
+InfoFile = os.path.join(InfoDir, InfoFileName)
 
 SubjectList = ''
 
 # TODO: Specify if standard frequency bands are used and if lowpass filter is applied to signal envelope
 
 Standard = True
-mode = 'lowpass-FC' #'no-lowpass'
+mode = 'lowpass' #'no-lowpass'
 
 if Standard:
     # Specify dictionary of the standard frequency bands

@@ -3,6 +3,25 @@ import Z_config as config
 from mne.filter import filter_data, next_fast_len
 from scipy.signal import hilbert
 
+def parallel_orth_corr(idx, ComplexSignal, SignalConj, SignalEnv, Env, EnvStd):
+    OrthSignal = (ComplexSignal * (SignalConj/SignalEnv)).imag
+    OrthEnv = np.abs(OrthSignal)
+    # Envelope Correlation
+    if LowPass:
+        # Low-Pass filter
+        OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
+                                        verbose=False)
+    OrthEnv -= np.mean(OrthEnv, axis=-1, keepdims=True)  # Centralize the data
+    OrthEnvStd = np.linalg.norm(OrthEnv, axis=-1)  # Compute standard deviation
+    OrthEnvStd[np.isclose(OrthEnvStd, 0)] = 1  # Sets std close to zero to 1
+
+    # Correlate each row of the
+    orthcorr = np.diag(np.matmul(OrthEnv, Env.T))
+    orthcorr /= EnvStd[idx]
+    orthcorr /= OrthEnvStd
+    return idx, orthcorr
+
+
 class Signal():
     """This class handles the signal analysis - band pass filtering,
     amplitude extraction and low-pass filtering the amplitude 
@@ -100,23 +119,37 @@ class Signal():
         EnvStd[np.isclose(EnvStd, 0)] = 1  # Eliminates zeros which produce error during pearson correlation
 
         FC = np.empty((self.NumberRegions, self.NumberRegions))
-        for n, ComplexSignal in enumerate(ComplexSignal):
-            OrthSignal = (ComplexSignal * (SignalConj/SignalEnv)).imag
-            OrthEnv = np.abs(OrthSignal)
 
-            # Envelope Correlation
-            if LowPass:
-                # Low-Pass filter
-                OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
-                                             verbose=False)
-            OrthEnv -= np.mean(OrthEnv, axis=-1, keepdims=True)  # Centralize the data
-            OrthEnvStd = np.linalg.norm(OrthEnv, axis=-1)  # Compute standard deviation
-            OrthEnvStd[np.isclose(OrthEnvStd, 0)] = 1  # Sets std close to zero to 1
+        def setup_parallel(n):
+            """
+            Generates settings for parallel orth corr function 
+            """
+            for idx in range(n): 
+                yield idx, ComplexSignal[idx], SignalConj, SignalEnv, Env, EnvStd
 
-            # Correlate each row of the
-            FC[n] = np.diag(np.matmul(OrthEnv, Env.T))
-            FC[n] /= EnvStd[n]
-            FC[n] /= OrthEnvStd
+        if processes>1: 
+            with Pool(processes) as p: 
+                for idx, result in p.starmap(parallel_orth_corr, setup_parallel(self.NumberRegions))
+                    FC[idx] = result 
+
+        else: 
+            for n, ComplexSignal in enumerate(ComplexSignal):
+                OrthSignal = (ComplexSignal * (SignalConj/SignalEnv)).imag
+                OrthEnv = np.abs(OrthSignal)
+
+                # Envelope Correlation
+                if LowPass:
+                    # Low-Pass filter
+                    OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
+                                                verbose=False)
+                OrthEnv -= np.mean(OrthEnv, axis=-1, keepdims=True)  # Centralize the data
+                OrthEnvStd = np.linalg.norm(OrthEnv, axis=-1)  # Compute standard deviation
+                OrthEnvStd[np.isclose(OrthEnvStd, 0)] = 1  # Sets std close to zero to 1
+
+                # Correlate each row of the
+                FC[n] = np.diag(np.matmul(OrthEnv, Env.T))
+                FC[n] /= EnvStd[n]
+                FC[n] /= OrthEnvStd
 
         # Make the Corr Matrix symmetric
         FC = (FC.T + FC) / 2.
