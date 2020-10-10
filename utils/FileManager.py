@@ -1,7 +1,6 @@
 import mat73
 import Z_config as config
-import os
-import glob
+import os, glob
 import numpy as np
 import pandas as pd
 from utils.SignalAnalysis import Signal, Envelope
@@ -32,10 +31,8 @@ class FileManager():
         if config.mode not in suffix:
             suffix = suffix + '_' + config.mode
 
-        for key, item in kwargs:
+        for key, item in kwargs.items():
             suffix = key + '-' + str(item) + '_' + suffix
-        if 'CarrierFreq' not in kwargs and config.Standard: 
-            suffix = 'Standard-Freq-Bands_' + suffix
 
         FileName = suffix
         return FileName
@@ -44,15 +41,14 @@ class FileManager():
         Directory = ''
         for arg in args[:-1]:
             Directory = os.path.join(Directory, arg)
-
-        if not os.path.isdir(Directory):
-            os.mkdir(Directory)
+            if not os.path.isdir(Directory):
+                os.mkdir(Directory)
 
         FilePath = os.path.join(Directory, args[-1])
         return FilePath
 
     def exists(self, suffix, SubjectNum=None, CarrierFreq=None):
-        FileName = self._createFileName(suffix, Sub=SubjectNum, CarrierFreq=CarrierFreq)
+        FileName = self._createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
         if glob.glob(os.path.join(self.ParentDir, f'**/{FileName}.*'), recursive=True):
             return True
         else:
@@ -137,19 +133,20 @@ class MEGManager(FileManager):
         :return: Dictionary containing Signal and Sampling Frequency
         """
         SubjectFile = os.path.join(self.DataDir, Subject + '_AAL94_norm.mat')
+        print(SubjectFile)
         DataFile = mat73.loadmat(SubjectFile)
         fsample = int(DataFile['AAL94_norm']['fsample'])
         signal = DataFile['AAL94_norm']['trial'][0] # Signal has to be transposed
         return signal.T, fsample
 
     def loadFC(self, SubjectNum, CarrierFreq, suffix=''):
-        FileName = super()._createFileName(suffix=suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FileName = super()._createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = os.path.join(self.FcDir, SubjectNum, FileName + '.npy')
         FC = np.load(FilePath)
         return FC
 
     def loadMST(self, SubjectNum, CarrierFreq, suffix='MST'):
-        FileName = super()._createFileName(suffix=suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FileName = super()._createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = os.path.join(self.MSTDir, SubjectNum, FileName + '.npy')
         MST = np.load(FilePath)
         return MST
@@ -167,12 +164,12 @@ class MEGManager(FileManager):
         return DataFrame
 
     def saveFC(self, Data, SubjectNum, CarrierFreq, suffix='FC'):
-        FileName = super()._createFileName(suffix=suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FileName = super()._createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = super()._createFilePath(self.FcDir, SubjectNum, FileName + '.npy')
         np.save(FilePath, Data)
 
     def saveMST(self, MST, SubjectNum, CarrierFreq, suffix='MST'):
-        FileName = super()._createFileName(suffix=suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FileName = super()._createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = super()._createFilePath(self.MSTDir, SubjectNum, FileName + '.npy')
         np.save(FilePath, MST)
 
@@ -228,12 +225,12 @@ class PlotManager(MEGManager):
         self.PlotDir = os.path.join(self.ParentDir, 'P_Plots')
 
     def saveEnvelopePlot(self, fig, SubjectNum, CarrierFreq, suffix):
-        FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FileName = super()._createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = super()._createFilePath(self.PlotDir, 'Orthogonalized-Envelope', FileName + '.png')
         fig.savefig(FilePath)
 
     def saveFCPlot(self, fig, SubjectNum, CarrierFreq, suffix):
-        FileName = super()._createFileName(suffix, SubjectNum=SubjectNum, CarrierFreq=CarrierFreq)
+        FileName = super()._createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = super()._createFilePath(self.PlotDir, 'Functional-Connectivity', FileName + '.png')
         fig.savefig(FilePath)
 
@@ -243,12 +240,12 @@ class PlotManager(MEGManager):
         fig.savefig(FilePath)
 
     def saveMeanDiffPlot(self, fig, CarrierFreq, suffix):
-        FileName = super()._createFileName(suffix, CarrierFreq=CarrierFreq)
+        FileName = super()._createFileName(suffix, Freq=CarrierFreq)
         FilePath = super()._createFilePath(self.PlotDir, 'Graph-Measures', FileName + '.png')
         fig.savefig(FilePath)
 
     def saveAvgCCD(self, fig, CarrierFreq, suffix):
-        FileName = super()._createFileName(suffix, CarrierFreq=CarrierFreq)
+        FileName = super()._createFileName(suffix, Freq=CarrierFreq)
         FilePath = super()._createFilePath(self.PlotDir, 'Coherence-Connectivity-Dynamics', FileName + '.png')
         fig.savefig(FilePath)
 

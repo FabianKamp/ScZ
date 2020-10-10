@@ -12,35 +12,34 @@ if config.SubjectList:
 else:
     SubjectList = M.getSubjectList()
 
-# Iterate over all subjects
-for Subject in SubjectList:
-    print(f'Processing Subject: {Subject}')
-    Signal, fsample = M.loadSignal(Subject)
-    # Convert to Signal
-    SubjectSignal = Signal(Signal, fsample=fsample)
-    # Downsample Signal
-    ResampleNum = SubjectSignal.getResampleNum(TargetFreq=config.DownFreq) #Calculate number of resampled datapoints
-    SubjectSignal.downsampleSignal(ResampleNum)
+def preprocessing(M, SubjectList):
+    # Iterate over all subjects
+    for Subject in SubjectList:
+        print(f'Processing Subject: {Subject}')
+        Data, fsample = M.loadSignal(Subject)
+        # Convert to Signal
+        SubjectSignal = Signal(Data, fsample=fsample)
+        # Downsample Signal
+        ResampleNum = SubjectSignal.getResampleNum(TargetFreq=config.DownFreq) #Calculate number of resampled datapoints
+        SubjectSignal.downsampleSignal(ResampleNum)
 
-    # Filter data
-    for FreqBand, Limits in config.FrequencyBands.items():
-        print('Processing: ', FreqBand)
-        # Check if
-        if M.exists(Sub=Subject, CarrierFreq=FreqBand, suffix='FC'):
-            continue
+        # Filter data
+        for FreqBand, Limits in config.FrequencyBands.items():
+            print('Processing: ', FreqBand)
+            # Check if
+            if M.exists('FC', SubjectNum=Subject, CarrierFreq=FreqBand):
+                continue
 
-        # Get Low-Pass orthogonalized Functional Connectivity Matrix of Frequency Band
-        if __name__ == "__main__":
+            # Get Low-Pass orthogonalized Functional Connectivity Matrix of Frequency Band
             FC = SubjectSignal.getOrthFC(Limits, processes=2, LowPass=(config.mode=='lowpass'))
 
-        else:
-            raise Exception('Mode not found. Change mode to lowpass or no-lowpass in config file.')
+            # Save
+            M.saveFC(FC, SubjectNum=Subject, CarrierFreq=FreqBand)
 
-        # Save
-        M.saveFC(FC, Sub=Subject, CarrierFreq=FreqBand)
+            # Create Minimum spannint Tree
+            MST = net.network(FC).MST()
+            M.saveMST(MST, SubjectNum=Subject, CarrierFreq=FreqBand)
+    print('Preprocessing done.')
 
-        # Create Minimum spannint Tree
-        MST = net.network(FC).MST()
-        M.saveMST(MST, Sub=Subject, CarrierFreq=FreqBand)
-
-print('Preprocessing done.')
+if __name__ == "__main__":
+    preprocessing(M, SubjectList)
