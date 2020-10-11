@@ -2,6 +2,7 @@ import Z_config as config
 from utils.FileManager import MEGManager
 import network as net
 from utils.SignalAnalysis import Signal, Envelope
+from time import time
 
 # Load File Manager, handle file dependencies
 M = MEGManager()
@@ -28,18 +29,19 @@ def preprocessing(M, SubjectList):
             print('Processing: ', FreqBand)
             # Check if
             if M.exists('FC', SubjectNum=Subject, CarrierFreq=FreqBand):
+                print(f'FC of {Subject} Freq {FreqBand} exists.')
                 continue
 
             # Get Low-Pass orthogonalized Functional Connectivity Matrix of Frequency Band
-            FC = SubjectSignal.getOrthFC(Limits, processes=2, LowPass=(config.mode=='lowpass'))
+            FC = SubjectSignal.getOrthFC(Limits, processes=5)
 
             # Save
             M.saveFC(FC, SubjectNum=Subject, CarrierFreq=FreqBand)
 
-            # Create Minimum spannint Tree
-            MST = net.network(FC).MST()
-            M.saveMST(MST, SubjectNum=Subject, CarrierFreq=FreqBand)
     print('Preprocessing done.')
 
 if __name__ == "__main__":
+    start = time()
     preprocessing(M, SubjectList)
+    end = time()
+    print('Time: ', end-start)

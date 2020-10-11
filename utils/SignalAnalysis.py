@@ -4,25 +4,18 @@ from mne.filter import filter_data, next_fast_len
 from scipy.signal import hilbert
 from multiprocessing import Pool
 import timeit
+from utils.corr import pearson2
 
-def parallel_orth_corr(idx, ComplexSignal, SignalConj, SignalEnv, Env, EnvStd, LowPass):
+def parallel_orth_corr(idx, ComplexSignal, fsample, SignalConj, SignalEnv):
 	OrthSignal = (ComplexSignal * (SignalConj/SignalEnv)).imag
 	OrthEnv = np.abs(OrthSignal)
 	# Envelope Correlation
-	if LowPass:
+	if config.mode=='lowpass':
 		# Low-Pass filter
-		OrthEnv = filter_data(OrthEnv, 200, 0, config.LowPassFreq, fir_window='hamming',
+		OrthEnv = filter_data(OrthEnv, fsample, 0, config.LowPassFreq, fir_window='hamming',
 										verbose=False)
-	
-	OrthEnv -= np.mean(OrthEnv, axis=-1, keepdims=True)  # Centralize the data
-	OrthEnvStd = np.linalg.norm(OrthEnv, axis=-1)  # Compute standard deviation
-	OrthEnvStd[np.isclose(OrthEnvStd, 0)] = 1  # Sets std close to zero to 1
-
-	# Correlate each row of the
-	orthcorr = np.diag(np.matmul(OrthEnv, Env.T))
-	orthcorr = orthcorr/EnvStd[idx]
-	orthcorr = orthcorr/OrthEnvStd
-	return orthcorr
+	corr = pearson2(OrthEnv, SignalEnv)	
+	return corr
 
 class Signal():
 	"""This class handles the signal analysis - band pass filtering,
@@ -95,7 +88,7 @@ class Signal():
 		self.fsample = self.fsample * downsamplingFactor
 		self.NumberRegions, self.TimePoints = self.Signal.shape
 
-	def getOrthFC(self, Limits, processes=1, LowPass=True):
+	def getOrthFC(self, Limits, processes=1):
 		# Filter signal
 		FilteredSignal = self.getFrequencyBand(Limits)
 
@@ -108,32 +101,24 @@ class Signal():
 		SignalConj = ComplexSignal.conj()
 
 		# Low pass filter envelope
-		if LowPass:
-			LowEnv = filter_data(SignalEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
+		if config.mode == 'lowpass':
+			SignalEnv = filter_data(SignalEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
 									  verbose=False)
-			# Centralize Envelope
-			Env = LowEnv - np.mean(LowEnv, axis=-1, keepdims=True)
-		# Else do not Low Pass filter
-		else:
-			Env = SignalEnv - np.mean(SignalEnv, axis=-1, keepdims=True)
-
-		EnvStd = np.linalg.norm(Env, axis=-1)  # Calculate the standard deviation using np.linalg.norm which squares, sums and takes the root
-		EnvStd[np.isclose(EnvStd, 0)] = 1  # Eliminates zeros which produce error during pearson correlation
 
 		FC = np.empty((self.NumberRegions, self.NumberRegions))
 
 		if processes>1: 
 			with Pool(processes=processes) as p: 
-				result = p.starmap(parallel_orth_corr, [(idx, C, SignalConj, SignalEnv, Env, EnvStd, LowPass) for idx, C in enumerate(ComplexSignal)])
+				result = p.starmap(parallel_orth_corr, [(idx, C, self.fsample, SignalConj, SignalEnv) for idx, C in enumerate(ComplexSignal)])
 			FC = np.array(result)
-
+		
 		else: 
 			for n, ComplexSignal in enumerate(ComplexSignal):
 				OrthSignal = (ComplexSignal * (SignalConj/SignalEnv)).imag
 				OrthEnv = np.abs(OrthSignal)
 
 				# Envelope Correlation
-				if LowPass:
+				if config.mode == 'lowpass':
 					# Low-Pass filter
 					OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
 												verbose=False)
@@ -151,7 +136,7 @@ class Signal():
 		# Correct for underestimation
 		FC *= (1 / 0.577)
 		return FC
-
+	
 	def getOrthEnvelope(self, Index, ReferenceIndex, FreqBand, LowPass=True):
 		"""
 		Function to compute the Orthogonalized Envelope of the indexed signal with respect to a reference Signal.

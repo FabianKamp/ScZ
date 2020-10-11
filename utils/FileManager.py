@@ -28,13 +28,14 @@ class FileManager():
         :return: FilePath string
         """
         # config.mode contains lowpass or no-lowpass. Is added to suffix.
-        if config.mode not in suffix:
+        if config.mode == 'no_lowpass':
             suffix = suffix + '_' + config.mode
-
+        
+        FileName = ''
         for key, item in kwargs.items():
-            suffix = key + '-' + str(item) + '_' + suffix
-
-        FileName = suffix
+            FileName += key + '-' + str(item) + '_'
+        
+        FileName += suffix
         return FileName
 
     def _createFilePath(self, *args):
@@ -133,7 +134,6 @@ class MEGManager(FileManager):
         :return: Dictionary containing Signal and Sampling Frequency
         """
         SubjectFile = os.path.join(self.DataDir, Subject + '_AAL94_norm.mat')
-        print(SubjectFile)
         DataFile = mat73.loadmat(SubjectFile)
         fsample = int(DataFile['AAL94_norm']['fsample'])
         signal = DataFile['AAL94_norm']['trial'][0] # Signal has to be transposed
@@ -173,7 +173,6 @@ class MEGManager(FileManager):
         FilePath = super()._createFilePath(self.MSTDir, SubjectNum, FileName + '.npy')
         np.save(FilePath, MST)
 
-
     def saveGraphMeasures(self, DataDict, suffix):
         FileName = super()._createFileName(suffix=suffix)
         FilePath = super()._createFilePath(self.NetMeasures, FileName + '.pkl')
@@ -196,7 +195,7 @@ class MEGManager(FileManager):
     def _createDataFrame(self, DataDict):
         """
         Creates DataFrame from DataDictionary using the index as orientation and
-        adds relevant information to the DataFrame - Group, etc.
+        adds Group
         :param DataDict: dictionary to convert into DataFrame
         :return: DataFrame
         """
@@ -349,9 +348,3 @@ class EvolutionManager(FileManager):
                 AvgCCD = (AvgCCD*n + CCD)/(n+1)
 
         return AvgCCD
-
-
-
-
-
-
