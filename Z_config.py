@@ -3,7 +3,7 @@ import os
 rsMEGDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG'
 
 # Configure path to repos and scripts
-repoDir = os.path.join(rsMEGDir, 'repos')
+repoDir = os.path.join(rsMEGDir, 'code')
 NetDir = os.path.join(repoDir, 'Network')
 
 
@@ -12,7 +12,7 @@ import sys
 sys.path.append(NetDir)
 
 # Specify Parent Directory and Data Directory
-ParentDir = os.path.join(rsMEGDir, 'Analysis')
+ParentDir = os.path.join(rsMEGDir, 'Analysis-Data')
 DataDir = os.path.join(rsMEGDir, 'rsMEG-Data')
 DTIDir = os.path.join(rsMEGDir, 'DTI-Data')
 
@@ -41,6 +41,9 @@ LowPassFreq = 0.2
 
 # Specify downsampling frequency
 DownFreq = 200
+
+# Specify thresholds for binarization
+binthresholds = [0.1,0.15,0.20,0.25,0.30]
 
 # Specifies the output Graph Measures
 GraphMeasures = ['AvgDegree', 'AvgCharPath', 'AvgNeighDegree', 'Assortativity', 'Transitivity',

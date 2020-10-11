@@ -47,7 +47,7 @@ class FileManager():
         return FilePath
 
     def exists(self, suffix, **kwargs):
-        FileName = self.createFileName(suffix, kwargs)
+        FileName = self.createFileName(suffix, **kwargs)
         if glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True):
             return True
         else:
@@ -106,9 +106,11 @@ class MEGManager(FileManager):
         # Create the Directory Paths
         self.FcDir = os.path.join(self.ParentDir, 'FunctCon')
         self.MSTDir = os.path.join(self.ParentDir, 'MinimalSpanningTree')
+        self.BinFcDir = os.path.join(self.ParentDir, 'BinFunctCon')
+        self.SplitFcDir = os.path.join(self.ParentDir, 'SplitFunctCon')
         self.MetaDir = os.path.join(self.ParentDir, 'Metastability')
         self.SubjectAnalysisDir = os.path.join(self.ParentDir, 'GraphMeasures', 'SubjectAnalysis')
-        self.NetMeasures = os.path.join(self.ParentDir, 'GraphMeasures', 'NetMeasures')
+        self.NetMeasuresDir = os.path.join(self.ParentDir, 'GraphMeasures', 'NetMeasures')
 
     def getSubjectList(self):
         """Gets the subject numbers of the MEG - Datafiles.
@@ -137,18 +139,6 @@ class MEGManager(FileManager):
         signal = DataFile['AAL94_norm']['trial'][0] # Signal has to be transposed
         return signal.T, fsample
 
-    def loadFC(self, SubjectNum, CarrierFreq, suffix=''):
-        FileName = super().createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = os.path.join(self.FcDir, SubjectNum, FileName + '.npy')
-        FC = np.load(FilePath)
-        return FC
-
-    def loadMST(self, SubjectNum, CarrierFreq, suffix='MST'):
-        FileName = super().createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = os.path.join(self.MSTDir, SubjectNum, FileName + '.npy')
-        MST = np.load(FilePath)
-        return MST
-
     def loadGraphMeasures(self, suffix):
         FileName = super().createFileName(suffix=suffix)
         FilePath = os.path.join(self.NetMeasures, FileName + '.pkl')
@@ -160,16 +150,6 @@ class MEGManager(FileManager):
         FilePath = os.path.join(self.MetaDir, FileName + '.pkl')
         DataFrame = pd.read_pickle(FilePath)
         return DataFrame
-
-    def saveFC(self, Data, SubjectNum, CarrierFreq, suffix='FC'):
-        FileName = super().createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = super().createFilePath(self.FcDir, SubjectNum, FileName + '.npy')
-        np.save(FilePath, Data)
-
-    def saveMST(self, MST, SubjectNum, CarrierFreq, suffix='MST'):
-        FileName = super().createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = super().createFilePath(self.MSTDir, SubjectNum, FileName + '.npy')
-        np.save(FilePath, MST)
 
     def saveGraphMeasures(self, DataDict, suffix):
         FileName = super().createFileName(suffix=suffix)

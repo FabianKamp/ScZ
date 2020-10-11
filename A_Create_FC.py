@@ -38,7 +38,9 @@ def preprocessing(M, SubjectList):
             FC = SubjectSignal.getOrthFC(Limits, processes=5)
 
             # Save
-            M.saveFC(FC, SubjectNum=Subject, CarrierFreq=FreqBand)
+            FileName = M.createFileName(suffix='FC.npy', Sub=SubjectNum, Freq=CarrierFreq)
+            FilePath = M.createFilePath(M.FcDir, SubjectNum, FileName)
+            np.save(FilePath, Data)
 
     print('Preprocessing done.')
 
