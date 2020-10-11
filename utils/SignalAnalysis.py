@@ -4,17 +4,17 @@ from mne.filter import filter_data, next_fast_len
 from scipy.signal import hilbert
 from multiprocessing import Pool
 import timeit
-from utils.corr import pearson2
+from utils.ConnFunc import *
 
-def parallel_orth_corr(idx, ComplexSignal, fsample, SignalConj, SignalEnv):
-	OrthSignal = (ComplexSignal * (SignalConj/SignalEnv)).imag
+def parallel_orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
+	OrthSignal = (ComplexSignal * ConjdivEnv).imag
 	OrthEnv = np.abs(OrthSignal)
 	# Envelope Correlation
 	if config.mode=='lowpass':
 		# Low-Pass filter
 		OrthEnv = filter_data(OrthEnv, fsample, 0, config.LowPassFreq, fir_window='hamming',
 										verbose=False)
-	corr = pearson2(OrthEnv, SignalEnv)	
+	corr = pearson3(OrthEnv, SignalEnv)	
 	return corr
 
 class Signal():
@@ -104,32 +104,13 @@ class Signal():
 		if config.mode == 'lowpass':
 			SignalEnv = filter_data(SignalEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
 									  verbose=False)
-
+		ConjdivEnv = SignalConj/SignalEnv 
 		FC = np.empty((self.NumberRegions, self.NumberRegions))
 
-		if processes>1: 
-			with Pool(processes=processes) as p: 
-				result = p.starmap(parallel_orth_corr, [(idx, C, self.fsample, SignalConj, SignalEnv) for idx, C in enumerate(ComplexSignal)])
-			FC = np.array(result)
-		
-		else: 
-			for n, ComplexSignal in enumerate(ComplexSignal):
-				OrthSignal = (ComplexSignal * (SignalConj/SignalEnv)).imag
-				OrthEnv = np.abs(OrthSignal)
-
-				# Envelope Correlation
-				if config.mode == 'lowpass':
-					# Low-Pass filter
-					OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
-												verbose=False)
-				OrthEnv -= np.mean(OrthEnv, axis=-1, keepdims=True)  # Centralize the data
-				OrthEnvStd = np.linalg.norm(OrthEnv, axis=-1)  # Compute standard deviation
-				OrthEnvStd[np.isclose(OrthEnvStd, 0)] = 1  # Sets std close to zero to 1
-
-				# Correlate each row of the
-				FC[n] = np.diag(np.matmul(OrthEnv, Env.T))
-				FC[n] /= EnvStd[n]
-				FC[n] /= OrthEnvStd
+		# Compute correlation in parallel		
+		with Pool(processes=processes) as p: 
+			result = p.starmap(parallel_orth_corr, [(Complex, SignalEnv, self.fsample, ConjdivEnv) for Complex in ComplexSignal])
+		FC = np.array(result)
 
 		# Make the Corr Matrix symmetric
 		FC = (FC.T + FC) / 2.

@@ -18,13 +18,11 @@ class FileManager():
         self.ControlIDs = self.getGroupIDs('CON')
         self.FEPIDs = self.getGroupIDs('FEP')
 
-    def _createFileName(self, suffix, **kwargs):
+    def createFileName(self, suffix, **kwargs):
         """
         Function to create FileName string. The file name and location is inferred from the suffix.
         Creates directories if not existing.
         :param suffix: name suffix of file
-        :param Sub: subject ID
-        :param CarrierFreq: Carrier Frequency of Signal if existing
         :return: FilePath string
         """
         # config.mode contains lowpass or no-lowpass. Is added to suffix.
@@ -38,7 +36,7 @@ class FileManager():
         FileName += suffix
         return FileName
 
-    def _createFilePath(self, *args):
+    def createFilePath(self, *args):
         Directory = ''
         for arg in args[:-1]:
             Directory = os.path.join(Directory, arg)
@@ -48,9 +46,9 @@ class FileManager():
         FilePath = os.path.join(Directory, args[-1])
         return FilePath
 
-    def exists(self, suffix, SubjectNum=None, CarrierFreq=None):
-        FileName = self._createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        if glob.glob(os.path.join(self.ParentDir, f'**/{FileName}.*'), recursive=True):
+    def exists(self, suffix, **kwargs):
+        FileName = self.createFileName(suffix, kwargs)
+        if glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True):
             return True
         else:
             return False
@@ -140,56 +138,56 @@ class MEGManager(FileManager):
         return signal.T, fsample
 
     def loadFC(self, SubjectNum, CarrierFreq, suffix=''):
-        FileName = super()._createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
+        FileName = super().createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = os.path.join(self.FcDir, SubjectNum, FileName + '.npy')
         FC = np.load(FilePath)
         return FC
 
     def loadMST(self, SubjectNum, CarrierFreq, suffix='MST'):
-        FileName = super()._createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
+        FileName = super().createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = os.path.join(self.MSTDir, SubjectNum, FileName + '.npy')
         MST = np.load(FilePath)
         return MST
 
     def loadGraphMeasures(self, suffix):
-        FileName = super()._createFileName(suffix=suffix)
+        FileName = super().createFileName(suffix=suffix)
         FilePath = os.path.join(self.NetMeasures, FileName + '.pkl')
         DataFrame = pd.read_pickle(FilePath)
         return DataFrame
 
     def loadMetastability(self, suffix='Metastability'):
-        FileName = super()._createFileName(suffix=suffix)
+        FileName = super().createFileName(suffix=suffix)
         FilePath = os.path.join(self.MetaDir, FileName + '.pkl')
         DataFrame = pd.read_pickle(FilePath)
         return DataFrame
 
     def saveFC(self, Data, SubjectNum, CarrierFreq, suffix='FC'):
-        FileName = super()._createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = super()._createFilePath(self.FcDir, SubjectNum, FileName + '.npy')
+        FileName = super().createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
+        FilePath = super().createFilePath(self.FcDir, SubjectNum, FileName + '.npy')
         np.save(FilePath, Data)
 
     def saveMST(self, MST, SubjectNum, CarrierFreq, suffix='MST'):
-        FileName = super()._createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = super()._createFilePath(self.MSTDir, SubjectNum, FileName + '.npy')
+        FileName = super().createFileName(suffix=suffix, Sub=SubjectNum, Freq=CarrierFreq)
+        FilePath = super().createFilePath(self.MSTDir, SubjectNum, FileName + '.npy')
         np.save(FilePath, MST)
 
     def saveGraphMeasures(self, DataDict, suffix):
-        FileName = super()._createFileName(suffix=suffix)
-        FilePath = super()._createFilePath(self.NetMeasures, FileName + '.pkl')
+        FileName = super().createFileName(suffix=suffix)
+        FilePath = super().createFilePath(self.NetMeasures, FileName + '.pkl')
         if self.exists(FilePath):
             df = self._updateDataFrame(FilePath, DataDict)
         else:
-            df = self._createDataFrame(DataDict)
+            df = self.createDataFrame(DataDict)
 
         df.to_pickle(FilePath)
 
     def saveMetastability(self, DataDict, suffix='Metastability'):
-        FileName = self._createFileName(suffix=suffix)
+        FileName = self.createFileName(suffix=suffix)
         FilePath = os.path.join(self.MetaDir, FileName + '.pkl')
         if self.exists(suffix):
             df = self._updateDataFrame(FilePath, DataDict)
         else:
-            df = self._createDataFrame(DataDict)
+            df = self.createDataFrame(DataDict)
         df.to_pickle(FilePath)
 
     def _createDataFrame(self, DataDict):
@@ -224,28 +222,28 @@ class PlotManager(MEGManager):
         self.PlotDir = os.path.join(self.ParentDir, 'P_Plots')
 
     def saveEnvelopePlot(self, fig, SubjectNum, CarrierFreq, suffix):
-        FileName = super()._createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = super()._createFilePath(self.PlotDir, 'Orthogonalized-Envelope', FileName + '.png')
+        FileName = super().createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
+        FilePath = super().createFilePath(self.PlotDir, 'Orthogonalized-Envelope', FileName + '.png')
         fig.savefig(FilePath)
 
     def saveFCPlot(self, fig, SubjectNum, CarrierFreq, suffix):
-        FileName = super()._createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = super()._createFilePath(self.PlotDir, 'Functional-Connectivity', FileName + '.png')
+        FileName = super().createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
+        FilePath = super().createFilePath(self.PlotDir, 'Functional-Connectivity', FileName + '.png')
         fig.savefig(FilePath)
 
     def saveMetaPlot(self, fig, suffix):
-        FileName = super()._createFileName(suffix)
-        FilePath = super()._createFilePath(self.PlotDir, 'Metastability', FileName + '.png')
+        FileName = super().createFileName(suffix)
+        FilePath = super().createFilePath(self.PlotDir, 'Metastability', FileName + '.png')
         fig.savefig(FilePath)
 
     def saveMeanDiffPlot(self, fig, CarrierFreq, suffix):
-        FileName = super()._createFileName(suffix, Freq=CarrierFreq)
-        FilePath = super()._createFilePath(self.PlotDir, 'Graph-Measures', FileName + '.png')
+        FileName = super().createFileName(suffix, Freq=CarrierFreq)
+        FilePath = super().createFilePath(self.PlotDir, 'Graph-Measures', FileName + '.png')
         fig.savefig(FilePath)
 
     def saveAvgCCD(self, fig, CarrierFreq, suffix):
-        FileName = super()._createFileName(suffix, Freq=CarrierFreq)
-        FilePath = super()._createFilePath(self.PlotDir, 'Coherence-Connectivity-Dynamics', FileName + '.png')
+        FileName = super().createFileName(suffix, Freq=CarrierFreq)
+        FilePath = super().createFilePath(self.PlotDir, 'Coherence-Connectivity-Dynamics', FileName + '.png')
         fig.savefig(FilePath)
 
 class EvolutionManager(FileManager):

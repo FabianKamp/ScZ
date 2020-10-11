@@ -18,8 +18,10 @@ def preprocessing(M, SubjectList):
     for Subject in SubjectList:
         print(f'Processing Subject: {Subject}')
         Data, fsample = M.loadSignal(Subject)
+        
         # Convert to Signal
         SubjectSignal = Signal(Data, fsample=fsample)
+        
         # Downsample Signal
         ResampleNum = SubjectSignal.getResampleNum(TargetFreq=config.DownFreq) #Calculate number of resampled datapoints
         SubjectSignal.downsampleSignal(ResampleNum)
