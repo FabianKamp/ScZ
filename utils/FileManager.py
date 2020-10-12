@@ -52,6 +52,12 @@ class FileManager():
             return True
         else:
             return False
+    
+    def find(self, suffix, **kwargs)
+        FileName = self.createFileName(suffix, **kwargs)
+        InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)[0]
+        TotalPath = os.path.join(self.ParentDir, InnerPath)
+        return TotalPath
 
     def getGroupIDs(self, Group):
         """
@@ -100,11 +106,20 @@ class FileManager():
                     return poslist[0]
         return poslist
 
+    @staticmethod
+    def loop_sub_freq(IDList, func):
+        for Subject in IDList:
+            print(f'Processing Subject {Subject}.')
+            for FreqBand, Limits in config.FrequencyBands.items():
+                func(Subject, Freq)
+        print('Processing finished.')
+      
 class MEGManager(FileManager):
     def __init__(self):
         super().__init__()
         # Create the Directory Paths
         self.FcDir = os.path.join(self.ParentDir, 'FunctCon')
+        self.GroupedFunctCon = os.path.join(self.ParentDir, 'GroupedFunctCon')
         self.MSTDir = os.path.join(self.ParentDir, 'MinimalSpanningTree')
         self.BinFcDir = os.path.join(self.ParentDir, 'BinFunctCon')
         self.SplitFcDir = os.path.join(self.ParentDir, 'SplitFunctCon')
