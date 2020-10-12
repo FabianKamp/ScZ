@@ -105,7 +105,6 @@ class Signal():
 			SignalEnv = filter_data(SignalEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
 									  verbose=False)
 		ConjdivEnv = SignalConj/SignalEnv 
-		FC = np.empty((self.NumberRegions, self.NumberRegions))
 
 		# Compute correlation in parallel		
 		with Pool(processes=processes) as p: 
@@ -114,8 +113,6 @@ class Signal():
 
 		# Make the Corr Matrix symmetric
 		FC = (FC.T + FC) / 2.
-		# Correct for underestimation
-		FC *= (1 / 0.577)
 		return FC
 	
 	def getOrthEnvelope(self, Index, ReferenceIndex, FreqBand, LowPass=True):

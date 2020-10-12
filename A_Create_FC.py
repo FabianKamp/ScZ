@@ -3,6 +3,7 @@ from utils.FileManager import MEGManager
 import network as net
 from utils.SignalAnalysis import Signal, Envelope
 from time import time
+import numpy as np
 
 # Load File Manager, handle file dependencies
 M = MEGManager()
@@ -30,17 +31,16 @@ def preprocessing(M, SubjectList):
         for FreqBand, Limits in config.FrequencyBands.items():
             print('Processing: ', FreqBand)
             # Check if
-            if M.exists('FC', SubjectNum=Subject, CarrierFreq=FreqBand):
-                print(f'FC of {Subject} Freq {FreqBand} exists.')
-                continue
+            if M.exists(suffix='FC.npy', Sub=Subject, Freq=FreqBand):
+                print(f'Overwriting FC of {Subject} Freq {FreqBand}.')
 
             # Get Low-Pass orthogonalized Functional Connectivity Matrix of Frequency Band
             FC = SubjectSignal.getOrthFC(Limits, processes=5)
 
             # Save
-            FileName = M.createFileName(suffix='FC.npy', Sub=SubjectNum, Freq=CarrierFreq)
-            FilePath = M.createFilePath(M.FcDir, SubjectNum, FileName)
-            np.save(FilePath, Data)
+            FileName = M.createFileName(suffix='FC.npy', Sub=Subject, Freq=FreqBand)
+            FilePath = M.createFilePath(M.FcDir, Subject, FileName)
+            np.save(FilePath, FC)
 
     print('Preprocessing done.')
 

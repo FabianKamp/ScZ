@@ -29,6 +29,11 @@ def get_edge_stats(M, GroupDict):
                 Subjects.append(Subject)
             AllFCs.extend(GroupFCs)
             GroupFCs = np.stack(GroupFCs)
+
+            # Save stacked data
+            FileName = M.createFileName(suffix='stacked-FCs.npy', Group=Group, Freq=FreqBand)  
+            FilePath = M.createFilePath(M.GroupStatsFC, 'Data', Group, FileName)
+            np.save(FilePath, GroupFCs)
             
             # Create Mean and Std FC
             MeanFC = np.mean(GroupFCs, axis=0)
@@ -56,19 +61,11 @@ def get_edge_stats(M, GroupDict):
             FilePath = M.createFilePath(M.GroupStatsFC, 'StDev', Group, FileName)
             np.save(FilePath, StdEdge)
 
-        # Z transform 
-        AllFCs = np.stack(AllFCs)
-        Mean = np.mean(AllFCs, axis=(1,2), keepdims=True)
-        Std = np.std(AllFCs, axis=(1,2), keepdims=True)
-        Std[np.isclose(Std,0)]=1
-        Zscores = (AllFCs - Mean)/Std
+        # Save stacked data
+        FileName = M.createFileName(suffix='stacked-FCs.npy', Freq=FreqBand)  
+        FilePath = M.createFilePath(M.GroupStatsFC, 'Data', FileName)
+        np.save(FilePath, AllFCs)
 
-        # Safe Z transformed to subject directory
-        for n, Subject in enumerate(Subjects):
-            SubjectZscores = Zscores[n,:,:] 
-            FileName = M.createFileName(suffix='FC_z-scores.npy', Sub=Subject, Freq=FreqBand)  
-            FilePath = M.createFilePath(M.FcDir, Subject, FileName)
-            np.save(FilePath, SubjectZscores)
     print('Processing finished.')
 
 if __name__ == "__main__":
