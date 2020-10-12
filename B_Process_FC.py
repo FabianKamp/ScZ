@@ -3,6 +3,7 @@ import numpy as np
 from utils.FileManager import MEGManager
 import Z_config as config
 import network as net
+from time import time
 
 # Load File Manager, handle file dependencies
 M = MEGManager()
@@ -25,6 +26,17 @@ def process_fc(M, SubjectList):
             FcName = M.createFileName(suffix='FC.npy', Sub=Subject, Freq=FreqBand)
             FcPath = M.createFilePath(M.FcDir, Subject, FcName)
             FC = np.load(FcPath)
+
+            # Z transform 
+            Mean = np.mean(FC)
+            Std = np.std(FC)
+            if np.isclose(Std,0): Std = 1
+            Zscores = (FC - Mean)/Std
+
+            # Save Z scores
+            FileName = M.createFileName(suffix='FC_z-scores.npy', Sub=Subject, Freq=FreqBand)  
+            FilePath = M.createFilePath(M.FcDir, Subject, FileName)
+            np.save(FilePath, Zscores)
 
             # Init network
             Network = net.network(FC)
@@ -57,4 +69,7 @@ def process_fc(M, SubjectList):
 
 # run function
 if __name__ == "__main__":
+    start = time()
     process_fc(M, SubjectList)
+    end = time()
+    print('Time: ', end-start)

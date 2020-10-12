@@ -53,7 +53,7 @@ class FileManager():
         else:
             return False
     
-    def find(self, suffix, **kwargs)
+    def find(self, suffix, **kwargs):
         FileName = self.createFileName(suffix, **kwargs)
         InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)[0]
         TotalPath = os.path.join(self.ParentDir, InnerPath)
@@ -119,7 +119,7 @@ class MEGManager(FileManager):
         super().__init__()
         # Create the Directory Paths
         self.FcDir = os.path.join(self.ParentDir, 'FunctCon')
-        self.GroupedFunctCon = os.path.join(self.ParentDir, 'GroupedFunctCon')
+        self.GroupStatsFC = os.path.join(self.ParentDir, 'GroupStatsFunctCon')
         self.MSTDir = os.path.join(self.ParentDir, 'MinimalSpanningTree')
         self.BinFcDir = os.path.join(self.ParentDir, 'BinFunctCon')
         self.SplitFcDir = os.path.join(self.ParentDir, 'SplitFunctCon')
