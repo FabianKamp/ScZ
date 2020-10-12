@@ -56,6 +56,8 @@ class FileManager():
     def find(self, suffix, **kwargs):
         FileName = self.createFileName(suffix, **kwargs)
         InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)[0]
+        if not InnerPath:
+            raise Exception('File not found.')
         TotalPath = os.path.join(self.ParentDir, InnerPath)
         return TotalPath
 
@@ -105,15 +107,7 @@ class FileManager():
                 if not all:
                     return poslist[0]
         return poslist
-
-    @staticmethod
-    def loop_sub_freq(IDList, func):
-        for Subject in IDList:
-            print(f'Processing Subject {Subject}.')
-            for FreqBand, Limits in config.FrequencyBands.items():
-                func(Subject, Freq)
-        print('Processing finished.')
-      
+     
 class MEGManager(FileManager):
     def __init__(self):
         super().__init__()
@@ -214,7 +208,8 @@ class MEGManager(FileManager):
 class PlotManager(MEGManager):
     def __init__(self):
         super().__init__()
-        self.PlotDir = os.path.join(self.ParentDir, 'P_Plots')
+        self.PlotDir = os.path.join(self.ParentDir, 'Plots')
+        self.PlotEdge = os.path.join(self.PlotDir, 'EdgeStats')
 
     def saveEnvelopePlot(self, fig, SubjectNum, CarrierFreq, suffix):
         FileName = super().createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
