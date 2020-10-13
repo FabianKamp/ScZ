@@ -21,9 +21,9 @@ def get_edge_stats(M, GroupDict):
         print(f'Processing Freq {FreqBand}.')
         AllFCs = []
         Subjects = []
-        for Group, IDs in GroupDict.items(): 
-            GroupFCs = []  
-            for n, Subject in enumerate(M.FEPIDs):
+        for Group, SubjectList in GroupDict.items(): 
+            GroupFCs = []
+            for Subject in SubjectList:  
                 # Appending Subject FC to Group FC list
                 GroupFCs.append(get_fc(FreqBand, Subject))
                 Subjects.append(Subject)

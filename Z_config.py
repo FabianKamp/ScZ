@@ -12,7 +12,7 @@ import sys
 sys.path.append(NetDir)
 
 # Specify Parent Directory and Data Directory
-ParentDir = os.path.join(rsMEGDir, 'Analysis-Data')
+ParentDir = os.path.join(rsMEGDir, 'Analysis')
 DataDir = os.path.join(rsMEGDir, 'rsMEG-Data')
 DTIDir = os.path.join(rsMEGDir, 'DTI-Data')
 

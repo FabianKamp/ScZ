@@ -55,10 +55,10 @@ class FileManager():
     
     def find(self, suffix, **kwargs):
         FileName = self.createFileName(suffix, **kwargs)
-        InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)[0]
-        if not InnerPath:
-            raise Exception('File not found.')
-        TotalPath = os.path.join(self.ParentDir, InnerPath)
+        InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)
+        if len(InnerPath)!=1:
+            raise Exception('Multiple or no File found.')
+        TotalPath = os.path.join(self.ParentDir, InnerPath[0])
         return TotalPath
 
     def getGroupIDs(self, Group):
@@ -209,8 +209,7 @@ class PlotManager(MEGManager):
     def __init__(self):
         super().__init__()
         self.PlotDir = os.path.join(self.ParentDir, 'Plots')
-        self.PlotEdge = os.path.join(self.PlotDir, 'EdgeStats')
-
+        
     def saveEnvelopePlot(self, fig, SubjectNum, CarrierFreq, suffix):
         FileName = super().createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
         FilePath = super().createFilePath(self.PlotDir, 'Orthogonalized-Envelope', FileName + '.png')
