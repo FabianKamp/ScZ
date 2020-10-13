@@ -17,7 +17,6 @@ CreateDF = False
 M = MEGManager()
 Groups = {'Control':M.ControlIDs, 'FEP':M.FEPIDs}
 
-
 def create_mean_edge_df():
     DataDict = {'Subject':[], 'Group':[]}
     DataDict.update({key:[] for key in config.FrequencyBands.keys()})
@@ -42,8 +41,27 @@ def plot_edge_dist():
     """
     Plots the Edge Distribution of all edges 
     """
-    FileName = P.createFileName(suffix='Group-Mean_Edge-Weights.pdf')
+    FileName = P.createFileName(suffix='Total_Edge-Weights.pdf')
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
+    with PdfPages(FilePath) as pdf:
+        for FreqBand in config.FrequencyBands.keys():
+            Data = np.load(P.find(suffix='stacked-FCs.npy', Freq=FreqBand))
+            max_edge = np.round(np.max(Data),2)
+            min_edge = np.round(np.min(Data),2)
+            # Flatten np array, take only upper triangle of mat
+            fData=[edge for Sub in Data for n,row in enumerate(Sub[:-1]) for edge in row[n+1:]]
+
+            # Plot histogramm
+            sns.set_style("whitegrid")
+            fig, ax = plt.subplots(figsize=(12, 6))
+            ax.set_title(f'Edge Weights - {FreqBand} Band', fontsize=15)
+            sns.histplot(fData, bins=50, ax=ax)
+            bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.7)
+            txtstr = '\n'.join([f'Max = {max_edge}', f'Min = {min_edge}'])
+            ax.text(0.85,0.85, txtstr, horizontalalignment='center', verticalalignment='center', transform=ax.transAxes, 
+                bbox = bbox_props, size='x-large')
+            ax.set_xlim(-0.05,0.6)
+            pdf.savefig() 
 
 def plot_group_mean_edge(): 
     """
@@ -72,7 +90,9 @@ def plot_group_mean_edge():
                 cbar_ax.tick_params(labelsize=10)
                 # Flatten np array, take only upper triangle of mat
                 fData=[edge for n,i in enumerate(Data[:-1]) for edge in i[n+1:]]
-                sns.histplot(fData, bins=50, ax=ax2, color=colors[idx])     
+                sns.histplot(fData, bins=50, ax=ax2, color=colors[idx], label=Group)
+            
+            ax2.legend()     
             pdf.savefig(f1)
             pdf.savefig(f2)
 
@@ -102,5 +122,6 @@ if __name__ == "__main__":
         create_mean_edge_df()
     #plot_mean_edge()
     plot_group_mean_edge()
+    plot_edge_dist()
     end = time()
     print('Time: ', end-start)
