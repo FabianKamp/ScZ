@@ -6,14 +6,15 @@ from multiprocessing import Pool
 import timeit
 from utils.ConnFunc import *
 
-def parallel_orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
+def calc_orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
+	# Orthogonalize signal
 	OrthSignal = (ComplexSignal * ConjdivEnv).imag
 	OrthEnv = np.abs(OrthSignal)
 	# Envelope Correlation
 	if config.mode=='lowpass':
 		# Low-Pass filter
-		OrthEnv = filter_data(OrthEnv, fsample, 0, config.LowPassFreq, fir_window='hamming',
-										verbose=False)
+		OrthEnv = filter_data(OrthEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
+		SignalEnv = filter_data(SignalEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)	
 	corr = pearson3(OrthEnv, SignalEnv)	
 	return corr
 
@@ -99,11 +100,6 @@ class Signal():
 		# Get signal envelope and conjugate
 		SignalEnv = np.abs(ComplexSignal)
 		SignalConj = ComplexSignal.conj()
-
-		# Low pass filter envelope
-		if config.mode == 'lowpass':
-			SignalEnv = filter_data(SignalEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming',
-									  verbose=False)
 		ConjdivEnv = SignalConj/SignalEnv 
 
 		# Compute correlation in parallel		
@@ -155,9 +151,6 @@ class Signal():
 								  verbose=False)
 
 		return OrthEnv, ReferenceEnv
-
-
-
 
 class Envelope(Signal):
 	"""
