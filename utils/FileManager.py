@@ -25,9 +25,11 @@ class FileManager():
         :param suffix: name suffix of file
         :return: FilePath string
         """
-        # config.mode contains lowpass or no-lowpass. Is added to suffix.
-        if config.mode == 'no_lowpass':
-            suffix = suffix + '_' + config.mode
+        # config.mode contains lowpass. Is added to suffix.
+        if config.mode == 'lowpass':
+            s = suffix.split('.')
+            s[0] += '_lowpass'
+            suffix = '.'.join(s)
         
         FileName = ''
         for key, item in kwargs.items():

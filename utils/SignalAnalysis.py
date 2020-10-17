@@ -6,7 +6,12 @@ from multiprocessing import Pool
 import timeit
 from utils.ConnFunc import *
 
-def calc_orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
+def orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
+	"""
+	Computes orthogonalized correlation of the envelope of the complex signal (nx1 dim array) and the signal envelope  (nxm dim array). 
+	This function is called by signal.getOrthFC()
+	:param ComplexSignal Complex 
+	"""
 	# Orthogonalize signal
 	OrthSignal = (ComplexSignal * ConjdivEnv).imag
 	OrthEnv = np.abs(OrthSignal)
@@ -15,7 +20,8 @@ def calc_orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
 		# Low-Pass filter
 		OrthEnv = filter_data(OrthEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
 		SignalEnv = filter_data(SignalEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)	
-	corr = pearson3(OrthEnv, SignalEnv)	
+	corr_mat = pearson3(OrthEnv, SignalEnv)	
+	corr = np.diag(corr_mat)
 	return corr
 
 class Signal():
@@ -89,13 +95,14 @@ class Signal():
 		self.fsample = self.fsample * downsamplingFactor
 		self.NumberRegions, self.TimePoints = self.Signal.shape
 
-	def getOrthFC(self, Limits, processes=1):
+	def getOrthFC(self, Limits, pad=100, processes=1):
 		# Filter signal
 		FilteredSignal = self.getFrequencyBand(Limits)
 
 		# Get complex signal
 		n_fft = next_fast_len(self.TimePoints)
 		ComplexSignal = hilbert(FilteredSignal, N=n_fft, axis=-1)[:, :self.TimePoints]
+		ComplexSignal = ComplexSignal[:,pad:-pad]
 
 		# Get signal envelope and conjugate
 		SignalEnv = np.abs(ComplexSignal)
@@ -104,7 +111,7 @@ class Signal():
 
 		# Compute correlation in parallel		
 		with Pool(processes=processes) as p: 
-			result = p.starmap(parallel_orth_corr, [(Complex, SignalEnv, self.fsample, ConjdivEnv) for Complex in ComplexSignal])
+			result = p.starmap(calc_orth_corr, [(Complex, SignalEnv, self.fsample, ConjdivEnv) for Complex in ComplexSignal])
 		FC = np.array(result)
 
 		# Make the Corr Matrix symmetric
