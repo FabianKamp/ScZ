@@ -25,7 +25,7 @@ SubjectList = [] # must be list
 # TODO: Specify if standard frequency bands are used 
 Standard = True
 # TODO: Specify connectivity mode
-conn_mode = 'orth' # 'orth-lowpass' or 'orth' 
+conn_mode = 'orth-lowpass' # 'orth-lowpass' or 'orth' 
 
 if Standard:
     # Specify dictionary of the standard frequency bands
@@ -47,4 +47,4 @@ binthresholds = [0.1,0.15,0.20,0.25,0.30]
 
 # Specifies the output Graph Measures
 GraphMeasures = ['AvgDegree', 'AvgCharPath', 'AvgNeighDegree', 'Assortativity', 'Transitivity',
-                 'AvgBetwCentrality', 'ClustCoeff', 'AvgCloseCentrality', 'GlobEfficiency']
+                 'AvgBetwCentrality', 'ClustCoeff', 'CloseCentrality', 'GlobEfficiency']

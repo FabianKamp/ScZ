@@ -48,17 +48,12 @@ def plot_edge_dist():
             # Plot histogramm
             sns.set_style("whitegrid")
             # Plot the orbital period with horizontal boxes
-            g = sns.displot(data=df, x="Edge Weights", hue="Group", col="Frequency",
-                kde=True, height=3, aspect=2)
+            g = sns.displot(data=df, x="Edge Weights", hue="Group", col="Frequency", palette='Set2',
+                kde=True, height=3, aspect=.8)
             g.set_axis_labels("Edge Weight", "Count")
             g.set_titles("{col_name} Band")
-            # Add textbox that indicates highest and lowest edge value
-            #bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.7)
-            #txtstr = '\n'.join([f'Max = {max_val}', f'Min = {min_val}'])
-            #ax.text(0.85,0.15, txtstr, horizontalalignment='center', verticalalignment='center', transform=ax.transAxes, 
-            #    bbox = bbox_props, size='x-large')
-            #ax.set_xlim(min_val-0.01,max_val+0.01)
-            
+            g.set(xlim=(-0.055, 0.255), ylim=(0, 3000), xticks=[0, 0.1, 0.2], yticks=[1000, 2000])
+            g.tight_layout()           
             # Save to pdf
             pdf.savefig() 
 
@@ -96,17 +91,21 @@ def plot_group_mean_edge():
                 axes[idx].set_title(Group, fontsize=15)
                 
                 # Flatten np array, take only upper triangle of mat, save to dict which will be transformed to pd.DataFrame
-                mask = np.triu_indices(Data.size, k=1)
+                mask = np.triu_indices(Data.shape[-1], k=1)
                 fData= Data[mask].tolist()
                 fDataDict['Group'].extend([Group]*len(fData))
                 fDataDict['Edge Weight'].extend(fData)
 
             DataFrame = pd.DataFrame(fDataDict)
             sns.histplot(DataFrame, x='Edge Weight', bins=50, ax=axes[2], hue="Group", palette='Set2')            
+            # configure histplot
             axes[2].set_xlim(min_val,max_val)
+            axes[2].xaxis.set_major_formatter(plt.FuncFormatter(lambda value,nr: np.round(value,2)))
+            axes[2].xaxis.set_major_locator(plt.MaxNLocator(5))
             # configure colorbar
             cbar_ax.tick_params(labelsize=10, left=True, labelleft=True, right=False, labelright=False)
             cbar_ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value,nr: np.round(value,2)))
+            cbar_ax.yaxis.set_major_locator(plt.MaxNLocator(4))
             pdf.savefig(fig)
 
 def plot_subject_mean_edge():
@@ -122,20 +121,20 @@ def plot_subject_mean_edge():
         var_name='Frequency', value_name='Mean Edge Weight') 
         sns.set_style("whitegrid")
 
-        f, ax = plt.subplots(figsize=(10, 8))
-        ax=pt.RainCloud(x = 'Frequency', y = 'Mean Edge Weight', hue = 'Group', data = df, palette = 'Set2', bw = .2,
-                 width_viol = .7, ax = ax, orient = 'h' , alpha = .65, dodge = True)
+        f, ax = plt.subplots(figsize=(12, 8))
+        ax=pt.RainCloud(x = 'Frequency', y = 'Mean Edge Weight', hue = 'Group', data = df, palette = 'Paired', bw = .2,
+                 width_viol = .7, ax = ax, orient = 'h' , alpha = .65, dodge = True, move=.2)
         
         ax.set_title(f'Subject-Mean Edge Weight')
-        ax.set_xlim(np.min(df['Mean Edge Weight']), np.max(df['Mean Edge Weight']))           
+        ax.set_xlim(np.min(df['Mean Edge Weight'])-0.005, np.max(df['Mean Edge Weight'])+0.005)           
         pdf.savefig(bbox_inches='tight')
 
 if __name__ == "__main__":
     start  = time()
     if CreateDF:
         create_mean_edge_df()
-    #plot_subject_mean_edge()
-    #plot_group_mean_edge()
+    plot_subject_mean_edge()
+    plot_group_mean_edge()
     plot_edge_dist()
     end = time()
     print('Time: ', end-start)

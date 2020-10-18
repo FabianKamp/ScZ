@@ -122,7 +122,7 @@ class MEGManager(FileManager):
         self.SplitFcDir = os.path.join(self.ParentDir, 'SplitFunctCon')
         self.MetaDir = os.path.join(self.ParentDir, 'Metastability')
         self.SubjectAnalysisDir = os.path.join(self.ParentDir, 'GraphMeasures', 'SubjectAnalysis')
-        self.NetMeasuresDir = os.path.join(self.ParentDir, 'GraphMeasures', 'NetMeasures')
+        self.NetMeasuresDir = os.path.join(self.ParentDir, 'GraphMeasures')
 
     def getSubjectList(self):
         """Gets the subject numbers of the MEG - Datafiles.
