@@ -18,3 +18,15 @@ def pearson(m1,m2):
 
     corr = np.matmul(m1,m2.T)/n 
     return corr
+
+def mut_inf(m1,m2):
+    from pyinform import utils, mutual_info
+    # Bin Timeseries
+    bined1,number1,width1 = utils.bin_series(m1, b=20)
+    bined2,number2,width2 = utils.bin_series(m2, b=20)
+    # Compute mutual info between time courses
+    m_info = []
+    for tc1,tc2 in zip(bined1,bined2):
+        m_info.append(mutual_info(tc1, tc2))
+    m_info = np.array(m_info)
+    return m_info

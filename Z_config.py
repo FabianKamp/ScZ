@@ -28,7 +28,7 @@ Standard = True
 conn_mode = 'orth' # 'orth-lowpass' or 'orth'
 
 # TODO: Specify which Network version to use ~ MST, Binarized etc.
-net_version = ''
+net_version = 'mst' # 'mst'
 
 if Standard:
     # Specify dictionary of the standard frequency bands

@@ -20,7 +20,7 @@ def plot_net_measures(version=''):
     # Load Data 
     df = pd.read_pickle(P.find(suffix='Graph-Measures', filetype='.pkl', net_version=True))
     # Set Pdf-FilePath
-    FileName = P.createFileName(suffix='Graph-Measures', filetype='.pdf')
+    FileName = P.createFileName(suffix='Graph-Measures', filetype='.pdf', net_version=True)
     FilePath = P.createFilePath(P.PlotDir, 'Graph-Measures', FileName)
 
     # Plot net measures
