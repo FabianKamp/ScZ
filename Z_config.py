@@ -20,12 +20,12 @@ InfoDir = os.path.join(rsMEGDir, 'Info')
 InfoFileName = 'Info.xlsx'
 InfoFile = os.path.join(InfoDir, InfoFileName)
 
-SubjectList = ['F001'] # must be list
+SubjectList = [] # must be list
 
-# TODO: Specify if standard frequency bands are used and if lowpass filter is applied to signal envelope
-
+# TODO: Specify if standard frequency bands are used 
 Standard = True
-mode = 'lowpass'
+# TODO: Specify connectivity mode
+conn_mode = 'orth' # 'orth-lowpass' or 'orth' 
 
 if Standard:
     # Specify dictionary of the standard frequency bands

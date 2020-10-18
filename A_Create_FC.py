@@ -35,7 +35,7 @@ def preprocessing(M, SubjectList):
                 print(f'Overwriting FC of {Subject} Freq {FreqBand}.')
 
             # Get Low-Pass orthogonalized Functional Connectivity Matrix of Frequency Band
-            FC = SubjectSignal.getOrthFC(Limits, processes=5)
+            FC = SubjectSignal.getFC(Limits, processes=5)
 
             # Save
             FileName = M.createFileName(suffix='FC.npy', Sub=Subject, Freq=FreqBand)

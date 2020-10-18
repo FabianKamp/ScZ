@@ -16,11 +16,11 @@ def orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
 	OrthSignal = (ComplexSignal * ConjdivEnv).imag
 	OrthEnv = np.abs(OrthSignal)
 	# Envelope Correlation
-	if config.mode=='lowpass':
+	if config.conn_mode=='orth-lowpass':
 		# Low-Pass filter
 		OrthEnv = filter_data(OrthEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
 		SignalEnv = filter_data(SignalEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)	
-	corr_mat = pearson3(OrthEnv, SignalEnv)	
+	corr_mat = pearson(OrthEnv, SignalEnv)	
 	corr = np.diag(corr_mat)
 	return corr
 
@@ -95,7 +95,7 @@ class Signal():
 		self.fsample = self.fsample * downsamplingFactor
 		self.NumberRegions, self.TimePoints = self.Signal.shape
 
-	def getOrthFC(self, Limits, pad=100, processes=1):
+	def getFC(self, Limits, pad=100, processes=1):
 		# Filter signal
 		FilteredSignal = self.getFrequencyBand(Limits)
 
@@ -104,14 +104,20 @@ class Signal():
 		ComplexSignal = hilbert(FilteredSignal, N=n_fft, axis=-1)[:, :self.TimePoints]
 		ComplexSignal = ComplexSignal[:,pad:-pad]
 
-		# Get signal envelope and conjugate
+		# Get signal envelope
 		SignalEnv = np.abs(ComplexSignal)
+		
+		# If no conn_mode is specified, unorthogonalized FC is computed.
+		if not config.conn_mode:
+			FC = pearson(SignalEnv, SignalEnv)
+			return FC
+
 		SignalConj = ComplexSignal.conj()
 		ConjdivEnv = SignalConj/SignalEnv 
 
-		# Compute correlation in parallel		
+		# Compute orthogonalization and correlation in parallel		
 		with Pool(processes=processes) as p: 
-			result = p.starmap(calc_orth_corr, [(Complex, SignalEnv, self.fsample, ConjdivEnv) for Complex in ComplexSignal])
+			result = p.starmap(orth_corr, [(Complex, SignalEnv, self.fsample, ConjdivEnv) for Complex in ComplexSignal])
 		FC = np.array(result)
 
 		# Make the Corr Matrix symmetric

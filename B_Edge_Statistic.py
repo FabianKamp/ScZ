@@ -5,26 +5,24 @@ import network as net
 from time import time
 import itertools
 from bct.nbs import nbs_bct
+import pandas as pd
 
 # Load File Manager, handle file dependencies
 M = MEGManager()
-# Create Group Dictionary
-GroupDict = {'Control':M.ControlIDs, 'FEP':M.FEPIDs}
+Stacking = True
 
-Stacking = False
-
-def stack_fcs(M, GroupDict):  
+def stack_fcs():  
     print('Started stacking.')
     for FreqBand, Limits in config.FrequencyBands.items():
         print(f'Processing Freq {FreqBand}.')
         AllFCs = []
         Subjects = []
-        for Group, SubjectList in GroupDict.items(): 
+        for Group, SubjectList in M.GroupIDs.items(): 
             GroupFCs = []
             for Subject in SubjectList:  
                 # Appending Subject FC to Group FC list
                 FC = np.load(M.find(suffix='FC.npy', Sub=Subject, Freq=FreqBand))
-                GroupFCs.append(get_fc(FreqBand, Subject))
+                GroupFCs.append(FC)
                 Subjects.append(Subject)
             AllFCs.extend(GroupFCs)
             GroupFCs = np.stack(GroupFCs)
@@ -40,9 +38,9 @@ def stack_fcs(M, GroupDict):
         np.save(FilePath, AllFCs)
     print('Finished stacking.')
 
-def calc_descr_stats(M, GroupDict):
+def calc_descr_stats():
     print('Started calculating descr stats.')
-    for Group, FreqBand in itertools.product(GroupDict.keys(), config.FrequencyBands.keys()):
+    for Group, FreqBand in itertools.product(M.GroupIDs.keys(), config.FrequencyBands.keys()):
         # Find File and load file
         GroupFCs = np.load(M.find(suffix='stacked-FCs.npy', Group=Group, Freq=FreqBand))
         
@@ -73,13 +71,30 @@ def calc_descr_stats(M, GroupDict):
         np.save(FilePath, StdEdge)
     print('Finished calculating descr stats.')
 
-def calc_nbs(M, GroupDict):
+def create_mean_edge_df():
+    print('Creating mean edge dataframe.')
+    DataDict = {'Subject':[], 'Group':[]}
+    DataDict.update({key:[] for key in config.FrequencyBands.keys()})
+    # iterate over all freqs and groups
+    for Group, Subjects in M.GroupIDs.items():
+        DataDict['Group'].extend([Group]*len(Subjects))
+        DataDict['Subject'].extend(Subjects)
+        for FreqBand in config.FrequencyBands.keys():
+            Data = np.load(M.find(suffix='Mean-Edge.npy', Group=Group, Freq=FreqBand))
+            DataDict[FreqBand].extend(Data.tolist())
+    DataFrame = pd.DataFrame(DataDict)
+    FileName = M.createFileName(suffix='Subject-Mean_Edge-Weights.pkl')
+    FilePath = M.createFilePath(M.GroupStatsFC, 'Mean', FileName)
+    DataFrame.to_pickle(FilePath)
+    print('Mean edge dataframe created.')
+
+def calc_nbs():
     # Set seed to make results reproducible
     np.random.seed(0)
     for FreqBand in config.FrequencyBands.keys():
         print(f'Processing {FreqBand}.')
         GroupFCList=[]
-        for Group in GroupDict.keys():
+        for Group in M.GroupIDs.keys():
             # Find File and load file 
             GroupFCs = np.load(M.find(suffix='stacked-FCs.npy', Group=Group, Freq=FreqBand))
             # Transform matrix for nbs 
@@ -98,8 +113,9 @@ def calc_nbs(M, GroupDict):
 if __name__ == "__main__":
     start = time()
     if Stacking: 
-        stack_fcs(M,GroupDict)
-    #calc_descr_stats(M, GroupDict)
-    calc_nbs(M,GroupDict)
+        stack_fcs()
+    calc_descr_stats()
+    create_mean_edge_df()
+    #calc_nbs(M)
     end = time()
     print('Time: ', end-start)

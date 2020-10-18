@@ -17,6 +17,7 @@ class FileManager():
         # Get Group IDs from Info sheet
         self.ControlIDs = self.getGroupIDs('CON')
         self.FEPIDs = self.getGroupIDs('FEP')
+        self.GroupIDs = {'Control': self.ControlIDs, 'FEP': self.FEPIDs}
 
     def createFileName(self, suffix, **kwargs):
         """
@@ -26,9 +27,9 @@ class FileManager():
         :return: FilePath string
         """
         # config.mode contains lowpass. Is added to suffix.
-        if config.mode == 'lowpass':
+        if config.conn_mode:
             s = suffix.split('.')
-            s[0] += '_lowpass'
+            s[0] += '_' + config.conn_mode
             suffix = '.'.join(s)
         
         FileName = ''

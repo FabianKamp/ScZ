@@ -1,6 +1,9 @@
 import numpy as np 
 
 def pearson(m1,m2):
+    """
+    Computes Correlation matrix 
+    """
     n = m1.shape[1]
 
     m1 -= np.mean(m1, axis=-1, keepdims=True)

@@ -10,30 +10,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 from utils.FileManager import *
 from time import time
 import seaborn as sns
+import itertools
 
 # set if DataFrame has to be created 
 CreateDF = False
-# Load File Manager, handle file dependencies
-M = MEGManager()
-Groups = {'Control':M.ControlIDs, 'FEP':M.FEPIDs}
-
-def create_mean_edge_df():
-    DataDict = {'Subject':[], 'Group':[]}
-    DataDict.update({key:[] for key in config.FrequencyBands.keys()})
-    # iterate over all freqs and groups
-    for Group, Subjects in Groups.items():
-        DataDict['Group'].extend([Group]*len(Subjects))
-        DataDict['Subject'].extend(Subjects)
-        for FreqBand in config.FrequencyBands.keys():
-            print(f'Processing Freq {FreqBand}, Group {Group}.')
-            Data = np.load(M.find(suffix='Mean-Edge.npy', Group=Group, Freq=FreqBand))
-            DataDict[FreqBand].extend(Data.tolist())
-    
-    DataFrame = pd.DataFrame(DataDict)
-    FileName = M.createFileName(suffix='Subject-Mean_Edge-Weights.pkl')
-    FilePath = M.createFilePath(M.GroupStatsFC, 'Mean', FileName)
-    DataFrame.to_pickle(FilePath)
-
 # Create Instance of Plot-Manager
 P = PlotManager()
 
@@ -41,26 +21,45 @@ def plot_edge_dist():
     """
     Plots the Edge Distribution of all edges 
     """
-    FileName = P.createFileName(suffix='Total_Edge-Weights.pdf')
+    FileName = P.createFileName(suffix='Group_Edge-Weights.pdf')
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
-    with PdfPages(FilePath) as pdf:
-        for FreqBand in config.FrequencyBands.keys():
-            Data = np.load(P.find(suffix='stacked-FCs.npy', Freq=FreqBand))
-            max_edge = np.round(np.max(Data),2)
-            min_edge = np.round(np.min(Data),2)
-            # Flatten np array, take only upper triangle of mat
-            fData=[edge for Sub in Data for n,row in enumerate(Sub[:-1]) for edge in row[n+1:]]
 
+    DataDict = {FreqBand:[] for FreqBand in config.FrequencyBands.keys()}
+    DataDict.update({'Group':[]})
+    min_val = 1
+    max_val = 0
+    
+    # Load Data to DataFrame
+    for Group in P.GroupIDs.keys():
+        for FreqBand in config.FrequencyBands.keys():
+            Data = np.load(P.find(suffix='stacked-FCs.npy', Group=Group, Freq=FreqBand))
+            mask = np.triu_indices(Data.shape[-1], k=1)
+            fData = np.stack([SubData[mask] for SubData in Data])
+            fData = np.ravel(fData).tolist()
+            DataDict[FreqBand].extend(fData)
+            min_val = min(min_val, np.min(fData))
+            max_val = max(max_val, np.max(fData))
+            n = len(fData)
+        DataDict['Group'].extend([Group]*n)
+    df = pd.DataFrame(DataDict)
+    df = pd.melt(df, id_vars=['Group'], value_vars=list(config.FrequencyBands.keys()), var_name='Frequency', value_name='Edge Weights')
+    
+    with PdfPages(FilePath) as pdf:
             # Plot histogramm
             sns.set_style("whitegrid")
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.set_title(f'Edge Weights - {FreqBand} Band', fontsize=15)
-            sns.histplot(fData, bins=50, ax=ax)
-            bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.7)
-            txtstr = '\n'.join([f'Max = {max_edge}', f'Min = {min_edge}'])
-            ax.text(0.85,0.85, txtstr, horizontalalignment='center', verticalalignment='center', transform=ax.transAxes, 
-                bbox = bbox_props, size='x-large')
-            ax.set_xlim(-0.05,0.6)
+            # Plot the orbital period with horizontal boxes
+            g = sns.displot(data=df, x="Edge Weights", hue="Group", col="Frequency",
+                kde=True, height=3, aspect=2)
+            g.set_axis_labels("Edge Weight", "Count")
+            g.set_titles("{col_name} Band")
+            # Add textbox that indicates highest and lowest edge value
+            #bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.7)
+            #txtstr = '\n'.join([f'Max = {max_val}', f'Min = {min_val}'])
+            #ax.text(0.85,0.15, txtstr, horizontalalignment='center', verticalalignment='center', transform=ax.transAxes, 
+            #    bbox = bbox_props, size='x-large')
+            #ax.set_xlim(min_val-0.01,max_val+0.01)
+            
+            # Save to pdf
             pdf.savefig() 
 
 def plot_group_mean_edge(): 
@@ -69,59 +68,74 @@ def plot_group_mean_edge():
     """
     FileName = P.createFileName(suffix='Group-Mean_Edge-Weights.pdf')
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
+    DataDict = {FreqBand:{} for FreqBand in config.FrequencyBands.keys()}
+    min_val = 1
+    max_val = 0
+    
+    # Load Data to Data Dict
+    for FreqBand, Group in itertools.product(config.FrequencyBands.keys(),P.GroupIDs.keys()):
+        Data = np.load(P.find(suffix='Mean-FC.npy', Group=Group, Freq=FreqBand))
+        DataDict[FreqBand].update({Group:Data})
+        min_val = min(min_val, np.min(Data))
+        max_val = max(max_val, np.max(Data))
+
     with PdfPages(FilePath) as pdf:
         for FreqBand in config.FrequencyBands.keys():
             # Set up figures
             sns.set_style("whitegrid")
-            colors = ['tab:blue', 'tab:orange']
-            f1, ax1 = plt.subplots(1, 2, figsize=(12, 6))
-            f1.suptitle(f'Group Mean Functional Connectivity - {FreqBand} Band', fontsize=15)
-            f2, ax2 = plt.subplots(figsize=(7,5))
-            ax2.set_title(f'Group Mean Edge Weights - {FreqBand} Band')
-            cbar_ax = f1.add_axes([.92, .2, .03, .6])
+            fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+            fig.suptitle(f'Group-Mean Functional Connectivity - {FreqBand} Band', fontsize=15)
+            cbar_ax = fig.add_axes([.06, .2, .02, .6])
+            fDataDict = {'Group':[], 'Edge Weight':[]}
+            for idx, Group in enumerate(P.GroupIDs.keys()):
+                Data = DataDict[FreqBand][Group]
+                im = sns.heatmap(Data, ax=axes[idx], cbar=idx == 0, linewidth=.05, cmap="YlGnBu", vmin=min_val, vmax=max_val, cbar_ax=None if idx else cbar_ax)
+                ticks = range(0,Data.shape[0],10)
+                axes[idx].set_xticks(ticks); axes[idx].set_xticklabels(ticks)
+                axes[idx].set_yticks(ticks); axes[idx].set_yticklabels(ticks)
+                axes[idx].set_title(Group, fontsize=15)
+                
+                # Flatten np array, take only upper triangle of mat, save to dict which will be transformed to pd.DataFrame
+                mask = np.triu_indices(Data.size, k=1)
+                fData= Data[mask].tolist()
+                fDataDict['Group'].extend([Group]*len(fData))
+                fDataDict['Edge Weight'].extend(fData)
 
-            for idx, Group in enumerate(Groups.keys()):
-                Data = np.load(P.find(suffix='Mean-FC.npy', Group=Group, Freq=FreqBand))
-                im = sns.heatmap(Data, ax=ax1[idx], cbar=idx == 0, linewidth=.05, vmin=0, vmax=0.5, cmap="YlGnBu", square=True, cbar_ax=None if idx else cbar_ax)
-                ticks = range(0,94,10)
-                ax1[idx].set_xticks(ticks); ax1[idx].set_xticklabels(ticks)
-                ax1[idx].set_yticks(ticks); ax1[idx].set_yticklabels(ticks)
-                ax1[idx].set_title(Group, fontsize=15)
-                cbar_ax.tick_params(labelsize=10)
-                # Flatten np array, take only upper triangle of mat
-                fData=[edge for n,i in enumerate(Data[:-1]) for edge in i[n+1:]]
-                sns.histplot(fData, bins=50, ax=ax2, color=colors[idx], label=Group)
-            
-            ax2.legend()     
-            pdf.savefig(f1)
-            pdf.savefig(f2)
+            DataFrame = pd.DataFrame(fDataDict)
+            sns.histplot(DataFrame, x='Edge Weight', bins=50, ax=axes[2], hue="Group", palette='Set2')            
+            axes[2].set_xlim(min_val,max_val)
+            # configure colorbar
+            cbar_ax.tick_params(labelsize=10, left=True, labelleft=True, right=False, labelright=False)
+            cbar_ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda value,nr: np.round(value,2)))
+            pdf.savefig(fig)
 
-def plot_mean_edge():
-    df = pd.read_pickle(P.find(suffix='Subject-Mean_Edge-Weighhts.pkl')) 
+def plot_subject_mean_edge():
+    """
+    Plot distribution of subject-mean edge values
+    """
+    # Load Data File
+    df = pd.read_pickle(P.find(suffix='Subject-Mean_Edge-Weights.pkl')) 
     FileName = P.createFileName(suffix='Subject-Mean_Edge-Weights.pdf')
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
     with PdfPages(FilePath) as pdf:
-        for FreqBand in config.FrequencyBands.keys():
-            sns.set_style("whitegrid")
-            dx="Group"; dy=FreqBand; 
-            # Settings
-            ort="h"; pal = "Set2"; sigma = .2
-            f, ax = plt.subplots(figsize=(7, 5))
+        df = pd.melt(df, id_vars=['Subject','Group'], value_vars=list(config.FrequencyBands.keys()),
+        var_name='Frequency', value_name='Mean Edge Weight') 
+        sns.set_style("whitegrid")
 
-            ax=pt.RainCloud(x = dx, y = dy, data = df, palette = pal, bw = sigma,
-                            width_viol = .5, ax = ax, orient = ort)
-            
-            ax.set_title(f'Mean Edge Values in {FreqBand} Band')
-            ax.set_xlabel('Mean Edge Value') 
-            ax.set_xlim(0.08,0.38)           
-            pdf.savefig()
+        f, ax = plt.subplots(figsize=(10, 8))
+        ax=pt.RainCloud(x = 'Frequency', y = 'Mean Edge Weight', hue = 'Group', data = df, palette = 'Set2', bw = .2,
+                 width_viol = .7, ax = ax, orient = 'h' , alpha = .65, dodge = True)
+        
+        ax.set_title(f'Subject-Mean Edge Weight')
+        ax.set_xlim(np.min(df['Mean Edge Weight']), np.max(df['Mean Edge Weight']))           
+        pdf.savefig(bbox_inches='tight')
 
 if __name__ == "__main__":
     start  = time()
     if CreateDF:
         create_mean_edge_df()
-    #plot_mean_edge()
-    plot_group_mean_edge()
+    #plot_subject_mean_edge()
+    #plot_group_mean_edge()
     plot_edge_dist()
     end = time()
     print('Time: ', end-start)
