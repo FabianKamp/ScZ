@@ -31,14 +31,14 @@ def preprocessing(M, SubjectList):
         for FreqBand, Limits in config.FrequencyBands.items():
             print('Processing: ', FreqBand)
             # Check if
-            if M.exists(suffix='FC.npy', Sub=Subject, Freq=FreqBand):
+            if M.exists(suffix='FC', filetype='.npy', Sub=Subject, Freq=FreqBand):
                 print(f'Overwriting FC of {Subject} Freq {FreqBand}.')
 
             # Get Low-Pass orthogonalized Functional Connectivity Matrix of Frequency Band
             FC = SubjectSignal.getFC(Limits, processes=5)
 
             # Save
-            FileName = M.createFileName(suffix='FC.npy', Sub=Subject, Freq=FreqBand)
+            FileName = M.createFileName(suffix='FC', filetype='.npy', Sub=Subject, Freq=FreqBand)
             FilePath = M.createFilePath(M.FcDir, Subject, FileName)
             np.save(FilePath, FC)
 

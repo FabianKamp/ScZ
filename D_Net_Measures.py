@@ -5,8 +5,33 @@ import numpy as np
 import itertools
 import pandas as pd
 from time import time
+from multiprocessing import Pool
 
-def comp_net_measures(version=''):
+def parallel_net_measures(idx, Group, Subject, FreqBand):
+    print(f'Processing {Subject}, {FreqBand} Band')
+    M = MEGManager() 
+    # Init Result Dict
+    ResultDict = {}
+    ResultDict['Subject']=Subject
+    ResultDict['Group']=Group
+    ResultDict['Frequency']=FreqBand
+    
+    # Load FC matrix
+    Data = np.load(M.find(suffix='FC', filetype='.npy', net_version=True, Sub=Subject, Freq=FreqBand))
+
+    # Remove negative edges from Network and set Diagonal to 0
+    Data[Data<0] = 0
+    np.fill_diagonal(Data, 0)
+    network = net.network(Data, np.arange(Data.shape[-1]))
+
+    # Calls network methods, appends result to Dict
+    for Measure, FuncName in config.GraphMeasures.items():
+        ResultDict[Measure]=getattr(network, FuncName)()
+    
+    df = pd.DataFrame(ResultDict, index=[idx])
+    return df
+
+def comp_net_measures():
     """
     Function to compute network measures for each subject, results are safed into pd.DataFrame
     :params type, default '', set to different FC version: 'mst', 'thres', etc. 
@@ -14,35 +39,17 @@ def comp_net_measures(version=''):
     print('Started calculating graph measures')
     # Load List of Data with FileManager
     M = MEGManager()
-    ResultDict = {}
-    ResultDict.update({'Subject':[], 'Group':[], 'Frequency':[]})
-    ResultDict.update({Measure:[] for Measure in config.GraphMeasures})
-
+    dfList = []
     for Group, SubjectList in M.GroupIDs.items():
         print(f'Processing Group {Group}.')
-        for Sub, FreqBand in itertools.product(SubjectList, config.FrequencyBands.keys():
-            ResultDict['Subject'].append(Sub); ResultDict['Frequency'].append(FreqBand)
-            ResultDict['Group'].append(Group)
-            # Load FC matrix
-            if version:
-                suffix = 'FC_' + version + '.npy'
-            else:
-                suffix = 'FC.npy'
-            Data = np.load(M.find(suffix=suffix, Sub=Subject, Freq=FreqBand))
-            network = net.network(Data, np.arange(Data.shape))
-            
-            # Calls network methods, appends result to Dict
-            for Measure in config.GraphMeasures:
-                ResultDict[Measure].append(getattr(network, Measure))
-    DataFrame = pd.DataFrame(ResultDict)
-    
+        with Pool(processes=10) as p:
+            result = p.starmap(parallel_net_measures, [(idx, Group, Subject, FreqBand) for idx, (Subject, FreqBand) in 
+            enumerate(itertools.product(SubjectList, config.FrequencyBands.keys()))])
+        dfList.extend(result)
+    DataFrame = pd.concat(dfList,ignore_index=True)    
     # save DataFrame to File
-    if version:
-        suffix = 'Graph-Measures_' + version + '.pkl'
-    else:
-        suffix = 'Graph-Measures.npy'
-    FileName = M.createFileName(suffix=suffix)
-    FilePath = M.createFilePath(M.NetMeasuresDir, 'Mean', FileName)
+    FileName = M.createFileName(suffix='Graph-Measures', filetype='.pkl', net_version=True)
+    FilePath = M.createFilePath(M.NetMeasuresDir, FileName)
     DataFrame.to_pickle(FilePath)
     print('Finished calculating graph measures')    
 
@@ -52,13 +59,3 @@ if __name__ == "__main__":
     end = time()
     print('Time: ', end-start)
     
-
-
-
-
-
-
-
-
-
-

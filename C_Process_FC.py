@@ -18,12 +18,12 @@ def process_fc(M, SubjectList):
     for Subject in SubjectList:
         print(f'Processing Subject {Subject}.')
         for FreqBand, Limits in config.FrequencyBands.items():        
-            if not M.exists(suffix='FC.npy', Sub=Subject, Freq=FreqBand):
+            if not M.exists(suffix='FC',filetype='.npy', Sub=Subject, Freq=FreqBand):
                 print(f'Skipped Subject {Subject}. Frequency Band {FreqBand} missing')
                 continue
             
             # load FC matrix
-            FcName = M.createFileName(suffix='FC.npy', Sub=Subject, Freq=FreqBand)
+            FcName = M.createFileName(suffix='FC',filetype='.npy', Sub=Subject, Freq=FreqBand)
             FcPath = M.createFilePath(M.FcDir, Subject, FcName)
             FC = np.load(FcPath)
 
@@ -34,7 +34,7 @@ def process_fc(M, SubjectList):
             Zscores = (FC - Mean)/Std
 
             # Save Z scores
-            FileName = M.createFileName(suffix='FC_z-scores.npy', Sub=Subject, Freq=FreqBand)  
+            FileName = M.createFileName(suffix='FC_z-scores',filetype='.npy', Sub=Subject, Freq=FreqBand)  
             FilePath = M.createFilePath(M.FcDir, Subject, FileName)
             np.save(FilePath, Zscores)
 
@@ -43,17 +43,17 @@ def process_fc(M, SubjectList):
 
             # Minimum Spanning Tree  
             mst = Network.MST()
-            MstName = M.createFileName(suffix='MST.npy', Sub=Subject, Freq=FreqBand)
+            MstName = M.createFileName(suffix='MST',filetype='.npy', Sub=Subject, Freq=FreqBand)
             MstPath = M.createFilePath(M.MSTDir, Subject, MstName)
             np.save(MstPath, mst)
 
             # Split into positive and negative network
             pos, neg = Network.split()
-            PosName = M.createFileName(suffix='FC_pos.npy', Sub=Subject, Freq=FreqBand)
+            PosName = M.createFileName(suffix='FC_pos',filetype='.npy', Sub=Subject, Freq=FreqBand)
             PosPath = M.createFilePath(M.SplitFcDir, 'Positive', Subject, PosName)
             np.save(PosPath, pos)
 
-            NegName = M.createFileName(suffix='FC_neg.npy', Sub=Subject, Freq=FreqBand)
+            NegName = M.createFileName(suffix='FC_neg',filetype='.npy', Sub=Subject, Freq=FreqBand)
             NegPath = M.createFilePath(M.SplitFcDir, 'Negative', Subject, NegName)
             np.save(NegPath, neg)
             
@@ -61,7 +61,7 @@ def process_fc(M, SubjectList):
             # Binarize Network        
             for thres in config.binthresholds:
                 BinFc = Network.binarize(thres)
-                BinFcName = M.createFileName(suffix='FC_bin-thres-'+str(thres)+'.npy', Sub=Subject, Freq=FreqBand)
+                BinFcName = M.createFileName(suffix='FC_bin-thres-'+str(thres),filetype='.npy', Sub=Subject, Freq=FreqBand)
                 BinFcPath = M.createFilePath(M.BinFcDir, 'Bin_Thres-' + str(thres), Subject, BinFcName)
                 np.save(BinFcPath, BinFc)
     

@@ -24,8 +24,11 @@ SubjectList = [] # must be list
 
 # TODO: Specify if standard frequency bands are used 
 Standard = True
-# TODO: Specify connectivity mode
-conn_mode = 'orth-lowpass' # 'orth-lowpass' or 'orth' 
+# TODO: Specify connectivity mode ~ Measure for Edges (orth-lowpass correlation, orth correlation etc.)
+conn_mode = 'orth' # 'orth-lowpass' or 'orth'
+
+# TODO: Specify which Network version to use ~ MST, Binarized etc.
+net_version = ''
 
 if Standard:
     # Specify dictionary of the standard frequency bands
@@ -45,6 +48,8 @@ DownFreq = 200
 # Specify thresholds for binarization
 binthresholds = [0.1,0.15,0.20,0.25,0.30]
 
-# Specifies the output Graph Measures
-GraphMeasures = ['AvgDegree', 'AvgCharPath', 'AvgNeighDegree', 'Assortativity', 'Transitivity',
-                 'AvgBetwCentrality', 'ClustCoeff', 'CloseCentrality', 'GlobEfficiency']
+# Specifies the Name of each Graph Measures in the network module
+GraphMeasures = {'Avg. Degree': 'degrees', 'Char. Pathlengths': 'char_path', 'Global Efficiency':'glob_efficiency',
+                'Cluster Coefficient':'clust_coeff', 'Transitivity':'transitivity', 'Close. Centrality':'closeness_centrality',
+                'Betw. Centrality':'betweenness_centrality', 'Avg. Neighbour Degree':'avg_neigh_degree', 
+                'Assortativity':'manual_assortativity'}

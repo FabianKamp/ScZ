@@ -21,7 +21,7 @@ def plot_edge_dist():
     """
     Plots the Edge Distribution of all edges 
     """
-    FileName = P.createFileName(suffix='Group_Edge-Weights.pdf')
+    FileName = P.createFileName(suffix='Group_Edge-Weights',filetype='.pdf')
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
 
     DataDict = {FreqBand:[] for FreqBand in config.FrequencyBands.keys()}
@@ -32,7 +32,7 @@ def plot_edge_dist():
     # Load Data to DataFrame
     for Group in P.GroupIDs.keys():
         for FreqBand in config.FrequencyBands.keys():
-            Data = np.load(P.find(suffix='stacked-FCs.npy', Group=Group, Freq=FreqBand))
+            Data = np.load(P.find(suffix='stacked-FCs', filetype='.npy', Group=Group, Freq=FreqBand))
             mask = np.triu_indices(Data.shape[-1], k=1)
             fData = np.stack([SubData[mask] for SubData in Data])
             fData = np.ravel(fData).tolist()
@@ -49,19 +49,23 @@ def plot_edge_dist():
             sns.set_style("whitegrid")
             # Plot the orbital period with horizontal boxes
             g = sns.displot(data=df, x="Edge Weights", hue="Group", col="Frequency", palette='Set2',
-                kde=True, height=3, aspect=.8)
+                kind='kde', height=3, aspect=.8)
             g.set_axis_labels("Edge Weight", "Count")
             g.set_titles("{col_name} Band")
-            g.set(xlim=(-0.055, 0.255), ylim=(0, 3000), xticks=[0, 0.1, 0.2], yticks=[1000, 2000])
-            g.tight_layout()           
+            # Format ticks
+            min_val = np.min(df['Edge Weights'])
+            max_val = np.max(df['Edge Weights'])
+            ticks = np.round(np.arange(min_val,max_val,0.2),1).tolist()
+            g.set(yticks=[0, 0.5, 1], xticks=ticks)  
             # Save to pdf
+            g.tight_layout()        
             pdf.savefig() 
 
 def plot_group_mean_edge(): 
     """
     Plots the Distribution of group mean edges
     """
-    FileName = P.createFileName(suffix='Group-Mean_Edge-Weights.pdf')
+    FileName = P.createFileName(suffix='Group-Mean_Edge-Weights', filetype='.pdf')
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
     DataDict = {FreqBand:{} for FreqBand in config.FrequencyBands.keys()}
     min_val = 1
@@ -69,7 +73,7 @@ def plot_group_mean_edge():
     
     # Load Data to Data Dict
     for FreqBand, Group in itertools.product(config.FrequencyBands.keys(),P.GroupIDs.keys()):
-        Data = np.load(P.find(suffix='Mean-FC.npy', Group=Group, Freq=FreqBand))
+        Data = np.load(P.find(suffix='Mean-FC', filetype='.npy', Group=Group, Freq=FreqBand))
         DataDict[FreqBand].update({Group:Data})
         min_val = min(min_val, np.min(Data))
         max_val = max(max_val, np.max(Data))
@@ -113,8 +117,8 @@ def plot_subject_mean_edge():
     Plot distribution of subject-mean edge values
     """
     # Load Data File
-    df = pd.read_pickle(P.find(suffix='Subject-Mean_Edge-Weights.pkl')) 
-    FileName = P.createFileName(suffix='Subject-Mean_Edge-Weights.pdf')
+    df = pd.read_pickle(P.find(suffix='Subject-Mean_Edge-Weights', filetype='.pkl')) 
+    FileName = P.createFileName(suffix='Subject-Mean_Edge-Weights', filetype='.pdf')
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
     with PdfPages(FilePath) as pdf:
         df = pd.melt(df, id_vars=['Subject','Group'], value_vars=list(config.FrequencyBands.keys()),
@@ -133,8 +137,8 @@ if __name__ == "__main__":
     start  = time()
     if CreateDF:
         create_mean_edge_df()
-    plot_subject_mean_edge()
-    plot_group_mean_edge()
+    #plot_subject_mean_edge()
+    #plot_group_mean_edge()
     plot_edge_dist()
     end = time()
     print('Time: ', end-start)
