@@ -27,7 +27,7 @@ Frequencies = 'low-gamma' # 'high-gamma', 'standard'
 # TODO: Specify connectivity mode ~ Measure for Edges (orth-lowpass correlation, orth correlation etc.)
 conn_mode = 'orth' # 'orth-lowpass' or 'orth'
 # TODO: Specify which Network version to use ~ MST, Binarized etc.
-net_version = ''
+net_version = 'mst' # 'mst'
 
 # Specify dictionary of the standard frequency bands
 if Frequencies='standard':
