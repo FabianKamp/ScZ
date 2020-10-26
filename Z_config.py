@@ -22,20 +22,25 @@ InfoFile = os.path.join(InfoDir, InfoFileName)
 
 SubjectList = [] # must be list
 
-# TODO: Specify if standard frequency bands are used 
-Standard = True
+# TODO: Specify if standard, high/low gamma or all frequency bands are used 
+Frequencies = 'low-gamma' # 'high-gamma', 'standard'
 # TODO: Specify connectivity mode ~ Measure for Edges (orth-lowpass correlation, orth correlation etc.)
 conn_mode = 'orth' # 'orth-lowpass' or 'orth'
-
 # TODO: Specify which Network version to use ~ MST, Binarized etc.
 net_version = ''
 
-if Standard:
-    # Specify dictionary of the standard frequency bands
+# Specify dictionary of the standard frequency bands
+if Frequencies='standard':
     FrequencyBands = {'Delta': [1,3], 'Theta': [4,7], 'Alpha':[8,12],
-                          'Beta': [18, 22], 'Gamma': [38, 42]}
+                        'Beta': [18, 22], 'Gamma': [38, 42]}
+## Specify Dictionary of Carrierfrequencies from 0 - 90 in steps of 2 Hz
+elif Frequencies='low-gamma':
+    FrequencyList = list(range(30, 48, 2))
+    FrequencyBands = {Freq: [Freq-2, Freq+2]) for Freq in FrequencyList}
+elif Frequencies='high-gamma':
+    FrequencyList = list(range(64, 92, 2))
+    FrequencyBands = {Freq: [Freq-2, Freq+2]) for Freq in FrequencyList}
 else:
-    ## Specify Dictionary of Carrierfrequencies from 0 - 90 in steps of 2 Hz
     FrequencyList = list(range(2, 48, 2)) + list(range(64,92,2))
     FrequencyBands = {Freq: ([0.1, 4] if Freq <=2 else [Freq-2, Freq+2]) for Freq in FrequencyList}
 

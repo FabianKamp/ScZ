@@ -19,24 +19,22 @@ class FileManager():
         self.FEPIDs = self.getGroupIDs('FEP')
         self.GroupIDs = {'Control': self.ControlIDs, 'FEP': self.FEPIDs}
 
-    def createFileName(self, suffix, filetype, net_version=False, **kwargs):
+    def createFileName(self, suffix, filetype, **kwargs):
         """
         Function to create FileName string. The file name and location is inferred from the suffix.
         Creates directories if not existing.
         :param suffix: name suffix of file
         :return: FilePath string
         """
-        # if net_version is True than config.net_version is added automatically to suffix
-        if net_version and config.net_version:
-            suffix += '_' + config.net_version
-        
+      
         # config.mode contains orth-lowpass, orth, etc. Is automatically added to suffix.
-        if config.conn_mode:
+        if config.conn_mode and ('no_conn', True) not in list(kwargs.items()):
             suffix += '_' + config.conn_mode
                 
         FileName = ''
-        for key, item in kwargs.items():
-            FileName += key + '-' + str(item) + '_'
+        for key, val in kwargs.items():
+            if key != 'no_conn':
+                FileName += key + '-' + str(val) + '_'
         
         FileName += suffix + filetype
         return FileName
@@ -51,15 +49,15 @@ class FileManager():
         FilePath = os.path.join(Directory, args[-1])
         return FilePath
 
-    def exists(self, suffix, filetype, net_version=False, **kwargs):
-        FileName = self.createFileName(suffix, filetype, net_version, **kwargs)
+    def exists(self, suffix, filetype, **kwargs):
+        FileName = self.createFileName(suffix, filetype, **kwargs)
         if glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True):
             return True
         else:
             return False
     
-    def find(self, suffix, filetype, net_version=False, **kwargs):
-        FileName = self.createFileName(suffix, filetype, net_version, **kwargs)
+    def find(self, suffix, filetype, **kwargs):
+        FileName = self.createFileName(suffix, filetype, add_conn, **kwargs)
         InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)
         if len(InnerPath)>1:
             raise Exception('Multiple Files found.')
@@ -126,6 +124,7 @@ class MEGManager(FileManager):
         self.BinFcDir = os.path.join(self.ParentDir, 'BinFunctCon')
         self.SplitFcDir = os.path.join(self.ParentDir, 'SplitFunctCon')
         self.MetaDir = os.path.join(self.ParentDir, 'Metastability')
+        self.CCDDir = os.path.join(self.ParentDir, 'CCD')
         self.SubjectAnalysisDir = os.path.join(self.ParentDir, 'GraphMeasures', 'SubjectAnalysis')
         self.NetMeasuresDir = os.path.join(self.ParentDir, 'GraphMeasures')
 

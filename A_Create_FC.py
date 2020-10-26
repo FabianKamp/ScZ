@@ -21,11 +21,9 @@ def preprocessing(M, SubjectList):
         Data, fsample = M.loadSignal(Subject)
         
         # Convert to Signal
-        SubjectSignal = Signal(Data, fsample=fsample)
-        
+        SubjectSignal = Signal(Data, fsample=fsample)        
         # Downsample Signal
-        ResampleNum = SubjectSignal.getResampleNum(TargetFreq=config.DownFreq) #Calculate number of resampled datapoints
-        SubjectSignal.downsampleSignal(ResampleNum)
+        SubjectSignal.downsampleSignal(TargetFreq=50)
 
         # Filter data
         for FreqBand, Limits in config.FrequencyBands.items():
