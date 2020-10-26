@@ -6,7 +6,6 @@ rsMEGDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG'
 repoDir = os.path.join(rsMEGDir, 'code')
 NetDir = os.path.join(repoDir, 'Network')
 
-
 # adds NetDir to sys.path, network module can be imported easily
 import sys
 sys.path.append(NetDir)
@@ -16,19 +15,25 @@ ParentDir = os.path.join(rsMEGDir, 'Analysis')
 DataDir = os.path.join(rsMEGDir, 'rsMEG-Data')
 DTIDir = os.path.join(rsMEGDir, 'DTI-Data')
 
+#Infor File
 InfoDir = os.path.join(rsMEGDir, 'Info')
 InfoFileName = 'Info.xlsx'
 InfoFile = os.path.join(InfoDir, InfoFileName)
 
+#AAL names file 
+AAL2NamesFileName = 'aal2.nii.txt'
+AAL2NamesFile = os.path.join(InfoDir, AAL2NamesFileName)
+
+# List of subjects that you want to process, if empty all subjects in info list are processeed.
 SubjectList = [] # must be list
 
 # TODO: Specify if standard frequency bands are used 
-Standard = True
+Standard = False
 # TODO: Specify connectivity mode ~ Measure for Edges (orth-lowpass correlation, orth correlation etc.)
-conn_mode = 'orth' # 'orth-lowpass' or 'orth'
+conn_mode = 'orth-lowpass-corr' # 'orth-lowpass-corr', 'orth-corr', 'corr'
 
-# TODO: Specify which Network version to use ~ MST, Binarized etc.
-net_version = 'mst' # 'mst'
+# TODO: Specify which Network version to use for Graph-Measures ~ MST, Binarized etc.
+net_version = 'MST' # 'FC','MST','FC-Z-scores', 'FC-Binarized' 
 
 if Standard:
     # Specify dictionary of the standard frequency bands

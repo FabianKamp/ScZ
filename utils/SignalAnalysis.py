@@ -16,7 +16,7 @@ def orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
 	OrthSignal = (ComplexSignal * ConjdivEnv).imag
 	OrthEnv = np.abs(OrthSignal)
 	# Envelope Correlation
-	if config.conn_mode=='orth-lowpass':
+	if config.conn_mode=='orth-lowpass-corr':
 		# Low-Pass filter
 		OrthEnv = filter_data(OrthEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
 		SignalEnv = filter_data(SignalEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)	
@@ -108,7 +108,7 @@ class Signal():
 		SignalEnv = np.abs(ComplexSignal)
 		
 		# If no conn_mode is specified, unorthogonalized FC is computed.
-		if not config.conn_mode:
+		if config.conn_mode == 'corr':
 			FC = pearson(SignalEnv, SignalEnv)
 			return FC
 

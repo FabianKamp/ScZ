@@ -19,17 +19,16 @@ class FileManager():
         self.FEPIDs = self.getGroupIDs('FEP')
         self.GroupIDs = {'Control': self.ControlIDs, 'FEP': self.FEPIDs}
 
-    def createFileName(self, suffix, filetype, net_version=False, **kwargs):
+        # AAL name file 
+        self.RegionNames, self.RegionCodes = self.getRegionNames()
+
+    def createFileName(self, suffix, filetype, **kwargs):
         """
         Function to create FileName string. The file name and location is inferred from the suffix.
         Creates directories if not existing.
         :param suffix: name suffix of file
         :return: FilePath string
-        """
-        # if net_version is True than config.net_version is added automatically to suffix
-        if net_version and config.net_version:
-            suffix += '_' + config.net_version
-        
+        """     
         # config.mode contains orth-lowpass, orth, etc. Is automatically added to suffix.
         if config.conn_mode:
             suffix += '_' + config.conn_mode
@@ -51,15 +50,15 @@ class FileManager():
         FilePath = os.path.join(Directory, args[-1])
         return FilePath
 
-    def exists(self, suffix, filetype, net_version=False, **kwargs):
-        FileName = self.createFileName(suffix, filetype, net_version, **kwargs)
+    def exists(self, suffix, filetype, **kwargs):
+        FileName = self.createFileName(suffix, filetype, **kwargs)
         if glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True):
             return True
         else:
             return False
     
-    def find(self, suffix, filetype, net_version=False, **kwargs):
-        FileName = self.createFileName(suffix, filetype, net_version, **kwargs)
+    def find(self, suffix, filetype, **kwargs):
+        FileName = self.createFileName(suffix, filetype, **kwargs)
         InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)
         if len(InnerPath)>1:
             raise Exception('Multiple Files found.')
@@ -96,6 +95,16 @@ class FileManager():
             Group = None
             print(f'{SubjectNum} not found in {config.InfoFileName}')
         return Group
+    
+    def getRegionNames(self):
+        AAL2File = config.AAL2NamesFile
+        with open(AAL2File, 'r') as file:
+            f=file.readlines()
+        assert len(f) == 94, 'AAL Name File must contain 94 lines.'        
+        labels=[line[:-1].split()[1] for line in f]
+        codes =[line[:-1].split()[2] for line in f]
+        codes = list(map(int,codes))
+        return labels, codes
 
     def _getLocation(self, df, value, all=False):
         """
