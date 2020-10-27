@@ -44,6 +44,7 @@ def plot_edge_dist():
     df = pd.DataFrame(DataDict)
     df = pd.melt(df, id_vars=['Group'], value_vars=list(config.FrequencyBands.keys()), var_name='Frequency', value_name='Edge Weights')
     
+    
     with PdfPages(FilePath) as pdf:
             # Plot histogramm
             sns.set_style("whitegrid")
@@ -137,8 +138,8 @@ if __name__ == "__main__":
     start  = time()
     if CreateDF:
         create_mean_edge_df()
-    #plot_subject_mean_edge()
-    #plot_group_mean_edge()
+    plot_subject_mean_edge()
+    plot_group_mean_edge()
     plot_edge_dist()
     end = time()
     print('Time: ', end-start)

@@ -6,7 +6,6 @@ rsMEGDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG'
 repoDir = os.path.join(rsMEGDir, 'code')
 NetDir = os.path.join(repoDir, 'Network')
 
-
 # adds NetDir to sys.path, network module can be imported easily
 import sys
 sys.path.append(NetDir)
@@ -16,30 +15,36 @@ ParentDir = os.path.join(rsMEGDir, 'Analysis')
 DataDir = os.path.join(rsMEGDir, 'rsMEG-Data')
 DTIDir = os.path.join(rsMEGDir, 'DTI-Data')
 
+#Infor File
 InfoDir = os.path.join(rsMEGDir, 'Info')
 InfoFileName = 'Info.xlsx'
 InfoFile = os.path.join(InfoDir, InfoFileName)
 
+#AAL names file 
+AAL2NamesFileName = 'aal2.nii.txt'
+AAL2NamesFile = os.path.join(InfoDir, AAL2NamesFileName)
+
+# List of subjects that you want to process, if empty all subjects in info list are processeed.
 SubjectList = [] # must be list
 
 # TODO: Specify if standard, high/low gamma or all frequency bands are used 
 Frequencies = 'low-gamma' # 'high-gamma', 'standard'
 # TODO: Specify connectivity mode ~ Measure for Edges (orth-lowpass correlation, orth correlation etc.)
-conn_mode = 'orth' # 'orth-lowpass' or 'orth'
+conn_mode = 'orth-lowpass-corr' # 'orth-lowpass-corr' or 'orth'
 # TODO: Specify which Network version to use ~ MST, Binarized etc.
-net_version = 'mst' # 'mst'
+net_version = 'MST' # 'MST'
 
 # Specify dictionary of the standard frequency bands
-if Frequencies='standard':
+if Frequencies=='standard':
     FrequencyBands = {'Delta': [1,3], 'Theta': [4,7], 'Alpha':[8,12],
                         'Beta': [18, 22], 'Gamma': [38, 42]}
 ## Specify Dictionary of Carrierfrequencies from 0 - 90 in steps of 2 Hz
-elif Frequencies='low-gamma':
+elif Frequencies=='low-gamma':
     FrequencyList = list(range(30, 48, 2))
-    FrequencyBands = {Freq: [Freq-2, Freq+2]) for Freq in FrequencyList}
-elif Frequencies='high-gamma':
+    FrequencyBands = {Freq: [Freq-2, Freq+2] for Freq in FrequencyList}
+elif Frequencies=='high-gamma':
     FrequencyList = list(range(64, 92, 2))
-    FrequencyBands = {Freq: [Freq-2, Freq+2]) for Freq in FrequencyList}
+    FrequencyBands = {Freq: [Freq-2, Freq+2] for Freq in FrequencyList}
 else:
     FrequencyList = list(range(2, 48, 2)) + list(range(64,92,2))
     FrequencyBands = {Freq: ([0.1, 4] if Freq <=2 else [Freq-2, Freq+2]) for Freq in FrequencyList}

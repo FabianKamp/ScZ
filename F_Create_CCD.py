@@ -1,21 +1,21 @@
 import Z_config as config
 from utils.FileManager import MEGManager
 import network as net
-from utils.SignalAnalysis import Signal, Envelope
+from utils.SignalAnalysis import Signal
 from time import time
 import numpy as np
 import itertools
 
 # Load File Manager, handle file dependencies
 
-def preprocessing(M):
+def get_CCD():
     M = MEGManager()
     # Iterate over all subjects
     for (FreqBand, Limits), (Group, SubjectList) in itertools.product(config.FrequencyBands.items(), M.GroupIDs.items()): 
         # init CCD
         downfreq = 30
         n_timepoints = 60*5*downfreq
-        CCD = np.zeros(n_timepoints, n_timepoints).astype('float32')
+        CCD = np.zeros((n_timepoints, n_timepoints)).astype('float32')
         
         for Subject in SubjectList:
             print(f'Processing Subject: {Subject}')
@@ -40,3 +40,7 @@ def preprocessing(M):
         np.save(FilePath, CCD)
 
     print('Preprocessing done.')
+
+if __name__ == "__main__":
+    get_CCD()
+    

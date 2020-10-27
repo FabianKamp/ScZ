@@ -39,7 +39,7 @@ def process_fc():
 
         # Minimum Spanning Tree  
         mst = Network.MST()
-        MstName = M.createFileName(suffix='FC_mst',filetype='.npy', Sub=Subject, Freq=FreqBand)
+        MstName = M.createFileName(suffix='MST',filetype='.npy', Sub=Subject, Freq=FreqBand)
         MstPath = M.createFilePath(M.MSTDir, Subject, MstName)
         np.save(MstPath, mst)
 

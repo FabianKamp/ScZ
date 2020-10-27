@@ -16,8 +16,11 @@ def parallel_net_measures(idx, Group, Subject, FreqBand):
     ResultDict['Group']=Group
     ResultDict['Frequency']=FreqBand
     
+    # Network Version
+    version = config.net_version
+
     # Load FC matrix
-    Data = np.load(M.find(suffix='FC', filetype='.npy', net_version=True, Sub=Subject, Freq=FreqBand))
+    Data = np.load(M.find(suffix=version, filetype='.npy', Sub=Subject, Freq=FreqBand))
 
     # Remove negative edges from Network and set Diagonal to 0
     Data[Data<0] = 0
