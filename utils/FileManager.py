@@ -320,37 +320,3 @@ class EvolutionManager(FileManager):
             mat += m
         mat = mat/len(Mats)
         return mat
-
-    def loadavgCCD(self, Group, FreqBand):
-        if Group == 'Control':
-            GroupIDs = self.ControlIDs
-        elif Group == 'FEP':
-            GroupIDs = self.FEPIDs
-        else:
-            raise Exception('Group not found')
-        AvgCCD = None
-        for n, Subject in enumerate(GroupIDs):
-            # Load Subject Data
-            Signal, fsample = self.loadSignal(Subject)
-            # Convert to Signal Class
-            MEGSignal = Signal(Signal, fsample)
-            # Downsample Data
-            ResNum = MEGSignal.getResampleNum(TargetFreq=config.DownFreq)
-            MEGSignal.downsampleSignal(resample_num=ResNum)
-            # Compute Envelope
-            Limits = config.FrequencyBands[FreqBand]
-            MEGEnvelope = MEGSignal.getLowPassEnvelope(Limits=Limits)
-            # Compute CCD
-            CCD = Envelope(MEGEnvelope).getCCD()
-            # Compute Average CCD
-            if AvgCCD is None:
-                AvgCCD = CCD.copy()
-            else:
-                # Take smaller CCD shape if not equal
-                if AvgCCD.shape != CCD.shape:
-                    samples = min(AvgCCD.shape[1], CCD.shape[1])
-                    AvgCCD = AvgCCD[:,:samples]
-                    CCD = CCD[:,:samples]
-                AvgCCD = (AvgCCD*n + CCD)/(n+1)
-
-        return AvgCCD
