@@ -6,7 +6,6 @@ rsMEGDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG'
 repoDir = os.path.join(rsMEGDir, 'code')
 NetDir = os.path.join(repoDir, 'Network')
 
-
 # adds NetDir to sys.path, network module can be imported easily
 import sys
 sys.path.append(NetDir)
