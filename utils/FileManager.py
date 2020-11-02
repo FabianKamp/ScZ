@@ -21,6 +21,7 @@ class FileManager():
 
         # AAL name file 
         self.RegionNames, self.RegionCodes = self.getRegionNames()
+        self.RegionCoordinates = self.getRegionCoords()
 
     def createFileName(self, suffix, filetype, **kwargs):
         """
@@ -62,9 +63,9 @@ class FileManager():
         FileName = self.createFileName(suffix, filetype, **kwargs)
         InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)
         if len(InnerPath)>1:
-            raise Exception('Multiple Files found.')
+            raise Exception(f'Multiple Files found: {InnerPath}')
         if len(InnerPath)<1:
-            raise Exception('No File found.')
+            raise Exception(f'No File found: {FileName}')
         
         TotalPath = os.path.join(self.ParentDir, InnerPath[0])
         return TotalPath
@@ -106,6 +107,12 @@ class FileManager():
         codes =[line[:-1].split()[2] for line in f]
         codes = list(map(int,codes))
         return labels, codes
+    
+    def getRegionCoords(self): 
+        import json
+        with open(config.AAL2CoordsFile, 'r') as file: 
+            CoordDict = json.load(file)
+        return CoordDict
 
     def _getLocation(self, df, value, all=False):
         """
