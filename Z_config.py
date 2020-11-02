@@ -21,6 +21,8 @@ InfoFileName = 'Info.xlsx'
 InfoFile = os.path.join(InfoDir, InfoFileName)
 
 #AAL names file 
+AAL2CoordsFileName = 'aal2_center_coords.txt'
+AAL2CoordsFile = os.path.join(InfoDir, AAL2CoordsFileName)
 AAL2NamesFileName = 'aal2.nii.txt'
 AAL2NamesFile = os.path.join(InfoDir, AAL2NamesFileName)
 
@@ -28,24 +30,25 @@ AAL2NamesFile = os.path.join(InfoDir, AAL2NamesFileName)
 SubjectList = [] # must be list
 
 # TODO: Specify if standard, high/low gamma or all frequency bands are used 
-Frequencies = 'low-gamma' # 'high-gamma', 'standard'
+Frequencies = 'Standard' # 'Low-Gamma', 'Standard', 'Complete'
 # TODO: Specify connectivity mode ~ Measure for Edges (orth-lowpass correlation, orth correlation etc.)
-conn_mode = 'orth-lowpass-corr' # 'orth-lowpass-corr' or 'orth'
+conn_mode = 'orth-lowpass-corr' # 'orth-lowpass-corr', 'orth-corr'
 # TODO: Specify which Network version to use ~ MST, Binarized etc.
 net_version = 'MST' # 'MST'
 
 # Specify dictionary of the standard frequency bands
-if Frequencies=='standard':
+if Frequencies=='Standard':
     FrequencyBands = {'Delta': [1,3], 'Theta': [4,7], 'Alpha':[8,12],
-                        'Beta': [18, 22], 'Gamma': [38, 42]}
+                        'Beta': [18, 22]}
+if Frequencies=='Narrow-Low-Gamma': 
+    FrequencyBands = {'Gamma-1':[30,34], 'Gamma-2':[34,38], 'Gamma-3':[38,42], 'Gamma-4':[42,46]}
+    
 ## Specify Dictionary of Carrierfrequencies from 0 - 90 in steps of 2 Hz
-elif Frequencies=='low-gamma':
-    FrequencyList = list(range(30, 48, 2))
-    FrequencyBands = {Freq: [Freq-2, Freq+2] for Freq in FrequencyList}
-elif Frequencies=='high-gamma':
-    FrequencyList = list(range(64, 92, 2))
-    FrequencyBands = {Freq: [Freq-2, Freq+2] for Freq in FrequencyList}
-else:
+elif Frequencies=='Wide-Low-Gamma':
+    FrequencyBands = {'Low-Gamma-1':[30,38], 'Low-Gamma-2':[38,46]}
+elif Frequencies=='Wide-High-Gamma':
+    FrequencyBands = {'High-Gamma-1':[64, 72], 'High-Gamma-2': [72,80], 'High-Gamma-3':[80,88], 'High-Gamma-4':[88,96]}
+elif Frequencies == 'Complete':
     FrequencyList = list(range(2, 48, 2)) + list(range(64,92,2))
     FrequencyBands = {Freq: ([0.1, 4] if Freq <=2 else [Freq-2, Freq+2]) for Freq in FrequencyList}
 

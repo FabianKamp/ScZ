@@ -12,8 +12,6 @@ from time import time
 import seaborn as sns
 import itertools
 
-# set if DataFrame has to be created 
-CreateDF = False
 # Create Instance of Plot-Manager
 P = PlotManager()
 
@@ -21,7 +19,7 @@ def plot_edge_dist():
     """
     Plots the Edge Distribution of all edges 
     """
-    FileName = P.createFileName(suffix='Group_Edge-Weights',filetype='.pdf')
+    FileName = P.createFileName(suffix='Group_Edge-Weights',filetype='.pdf', Freq=config.Frequencies)
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
 
     DataDict = {FreqBand:[] for FreqBand in config.FrequencyBands.keys()}
@@ -34,8 +32,8 @@ def plot_edge_dist():
         for FreqBand in config.FrequencyBands.keys():
             Data = np.load(P.find(suffix='stacked-FCs', filetype='.npy', Group=Group, Freq=FreqBand))
             mask = np.triu_indices(Data.shape[-1], k=1)
-            fData = np.stack([SubData[mask] for SubData in Data])
-            fData = np.ravel(fData).tolist()
+            Data = np.stack([SubData[mask] for SubData in Data])
+            fData = np.ravel(Data).tolist()
             DataDict[FreqBand].extend(fData)
             min_val = min(min_val, np.min(fData))
             max_val = max(max_val, np.max(fData))
@@ -66,7 +64,7 @@ def plot_group_mean_edge():
     """
     Plots the Distribution of group mean edges
     """
-    FileName = P.createFileName(suffix='Group-Mean_Edge-Weights', filetype='.pdf')
+    FileName = P.createFileName(suffix='Group-Mean_Edge-Weights', filetype='.pdf', Freq=config.Frequencies)
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
     DataDict = {FreqBand:{} for FreqBand in config.FrequencyBands.keys()}
     min_val = 1
@@ -118,15 +116,15 @@ def plot_subject_mean_edge():
     Plot distribution of subject-mean edge values
     """
     # Load Data File
-    df = pd.read_pickle(P.find(suffix='Subject-Mean_Edge-Weights', filetype='.pkl')) 
-    FileName = P.createFileName(suffix='Subject-Mean_Edge-Weights', filetype='.pdf')
+    df = pd.read_pickle(P.find(suffix='Subject-Mean_Edge-Weights', filetype='.pkl', Freq=config.Frequencies)) 
+    FileName = P.createFileName(suffix='Subject-Mean_Edge-Weights', filetype='.pdf', Freq=config.Frequencies)
     FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
     with PdfPages(FilePath) as pdf:
         df = pd.melt(df, id_vars=['Subject','Group'], value_vars=list(config.FrequencyBands.keys()),
         var_name='Frequency', value_name='Mean Edge Weight') 
         sns.set_style("whitegrid")
 
-        f, ax = plt.subplots(figsize=(12, 8))
+        f, ax = plt.subplots(figsize=(12, 12))
         ax=pt.RainCloud(x = 'Frequency', y = 'Mean Edge Weight', hue = 'Group', data = df, palette = 'Paired', bw = .2,
                  width_viol = .7, ax = ax, orient = 'h' , alpha = .65, dodge = True, move=.2)
         
@@ -134,12 +132,46 @@ def plot_subject_mean_edge():
         ax.set_xlim(np.min(df['Mean Edge Weight'])-0.005, np.max(df['Mean Edge Weight'])+0.005)           
         pdf.savefig(bbox_inches='tight')
 
+def plot_GBC():
+    df = pd.read_pickle(P.find(suffix='GBC',filetype='.pkl', Freq=config.Frequencies))
+    FileName = P.createFileName(suffix='Mean-GBC', filetype='.pdf', Freq=config.Frequencies)
+    FilePath = P.createFilePath(P.PlotDir, 'EdgeStats', FileName)
+    with PdfPages(FilePath) as pdf:
+        sns.set_style("whitegrid")
+        fsize = len(list(config.FrequencyBands.keys()))
+        f, ax = plt.subplots(figsize=(12, fsize*2))
+        ax=pt.RainCloud(x = 'Frequency', y = 'Avg. GBC', hue = 'Group', data = df, palette = 'Paired', bw = .2,
+                 width_viol = .7, ax = ax, orient = 'h' , alpha = .65, dodge = True, move=.2)
+        
+        ax.set_title(f'Average Global Brain Connectivity')
+        #ax.set_xlim(np.min(df['Mean Edge Weight'])-0.005, np.max(df['Mean Edge Weight'])+0.005)           
+        pdf.savefig(bbox_inches='tight')
+
+def plot_NBS_comp(file):
+    # Then get labels of the aal2 
+    from mne.viz import circular_layout, plot_connectivity_circle
+    labels = P.RegionNames
+    labels = [label.replace('_', ' ') for label in labels]
+    lh = [(zpos[idx], name) for idx, name in enumerate(labels) if name.endswith('L')]
+    lh = sorted(lh)[::-1]
+    rh  = [(zpos[idx], name) for idx, name in enumerate(labels) if name.endswith('R')]
+    rh = sorted(rh)
+
+    ordered = [item[1] for item in lh]
+    ordered.extend([item[1] for item in rh])
+    node_angles = circular_layout(labels, ordered, start_pos=90, group_boundaries=[0, len(labels)/2], group_sep=20)
+    
+    # Load Component
+    adj = np.load(file)
+    fig = plt.figure(figsize=(18,18))
+    plot_connectivity_circle(adj, labels, node_angles=node_angles, n_lines=10, colormap='PuBu', colorbar_size = .4, 
+                            colorbar_pos=(-0.5,.5), textcolor='k', facecolor='white', fig=fig)
+
 if __name__ == "__main__":
     start  = time()
-    if CreateDF:
-        create_mean_edge_df()
-    plot_subject_mean_edge()
-    plot_group_mean_edge()
-    plot_edge_dist()
+    #plot_subject_mean_edge()
+    plot_GBC()
+    #plot_group_mean_edge()
+    #plot_edge_dist()
     end = time()
     print('Time: ', end-start)

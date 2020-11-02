@@ -1,20 +1,19 @@
 import Z_config as config
 from utils.FileManager import MEGManager
 import network as net
-from utils.SignalAnalysis import Signal, Envelope
+from utils.SignalAnalysis import Signal
 from time import time
 import numpy as np
 
-# Load File Manager, handle file dependencies
-M = MEGManager()
+def preprocessing():
+    # Load File Manager, handle file dependencies
+    M = MEGManager()
+    # Get list of subjects if defined or load all subjects
+    if config.SubjectList:
+        SubjectList = config.SubjectList
+    else:
+        SubjectList = M.getSubjectList()
 
-# Get list of subjects if defined or load all subjects
-if config.SubjectList:
-    SubjectList = config.SubjectList
-else:
-    SubjectList = M.getSubjectList()
-
-def preprocessing(M, SubjectList):
     # Iterate over all subjects
     for Subject in SubjectList:
         print(f'Processing Subject: {Subject}')
@@ -23,7 +22,7 @@ def preprocessing(M, SubjectList):
         # Convert to Signal
         SubjectSignal = Signal(Data, fsample=fsample)        
         # Downsample Signal
-        SubjectSignal.downsampleSignal(TargetFreq=50)
+        SubjectSignal.downsampleSignal(TargetFreq=config.DownFreq)
 
         # Filter data
         for FreqBand, Limits in config.FrequencyBands.items():
@@ -44,6 +43,6 @@ def preprocessing(M, SubjectList):
 
 if __name__ == "__main__":
     start = time()
-    preprocessing(M, SubjectList)
+    preprocessing()
     end = time()
     print('Time: ', end-start)
