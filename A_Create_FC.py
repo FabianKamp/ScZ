@@ -6,26 +6,21 @@ from time import time
 import numpy as np
 
 def preprocessing():
-    # Load File Manager, handle file dependencies
+    """
+    Function to perform preprocessing, generates FC matrix for each subject taking the configurations of the config file
+    """
     M = MEGManager()
-    # Get list of subjects if defined or load all subjects
-    if config.SubjectList:
-        SubjectList = config.SubjectList
-    else:
-        SubjectList = M.getSubjectList()
-
     # Iterate over all subjects
-    for Subject in SubjectList:
+    for Subject in M.SubjectList:
         print(f'Processing Subject: {Subject}')
-        Data, fsample = M.loadSignal(Subject)
-        
+        Data, fsample = M.loadMatFile(Subject)        
         # Convert to Signal
         SubjectSignal = Signal(Data, fsample=fsample)        
         # Downsample Signal
-        SubjectSignal.downsampleSignal(TargetFreq=config.DownFreq)
+        SubjectSignal.downsampleSignal(TargetFreq=M.DownFreq)
 
         # Filter data
-        for FreqBand, Limits in config.FrequencyBands.items():
+        for FreqBand, Limits in M.FrequencyBands.items():
             print('Processing: ', FreqBand)
             # Check if
             if M.exists(suffix='FC', filetype='.npy', Sub=Subject, Freq=FreqBand):
@@ -38,7 +33,6 @@ def preprocessing():
             FileName = M.createFileName(suffix='FC', filetype='.npy', Sub=Subject, Freq=FreqBand)
             FilePath = M.createFilePath(M.FcDir, Subject, FileName)
             np.save(FilePath, FC)
-
     print('Preprocessing done.')
 
 if __name__ == "__main__":

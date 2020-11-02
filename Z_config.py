@@ -30,16 +30,15 @@ AAL2NamesFile = os.path.join(InfoDir, AAL2NamesFileName)
 SubjectList = [] # must be list
 
 # TODO: Specify if standard, high/low gamma or all frequency bands are used 
-Frequencies = 'Standard' # 'Low-Gamma', 'Standard', 'Complete'
+Frequencies = 'Wide-Low-Gamma' # 'Low-Gamma', 'Standard', 'Complete'
 # TODO: Specify connectivity mode ~ Measure for Edges (orth-lowpass correlation, orth correlation etc.)
-conn_mode = 'orth-lowpass-corr' # 'orth-lowpass-corr', 'orth-corr'
+conn_mode = 'orth-corr' # 'orth-lowpass-corr', 'orth-corr'
 # TODO: Specify which Network version to use ~ MST, Binarized etc.
-net_version = 'MST' # 'MST'
+net_version = 'FC' # 'FC', 'MST'
 
 # Specify dictionary of the standard frequency bands
 if Frequencies=='Standard':
-    FrequencyBands = {'Delta': [1,3], 'Theta': [4,7], 'Alpha':[8,12],
-                        'Beta': [18, 22]}
+    FrequencyBands = {'Delta': [1,3], 'Theta': [4,7], 'Alpha':[8,12], 'Beta': [18, 22]}
 if Frequencies=='Narrow-Low-Gamma': 
     FrequencyBands = {'Gamma-1':[30,34], 'Gamma-2':[34,38], 'Gamma-3':[38,42], 'Gamma-4':[42,46]}
     

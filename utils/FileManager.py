@@ -23,6 +23,14 @@ class FileManager():
         self.RegionNames, self.RegionCodes = self.getRegionNames()
         self.RegionCoordinates = self.getRegionCoords()
 
+        # Load Attributes from config file 
+        self.FrequencyBands = config.FrequencyBands
+        self.DownFreq = config.DownFreq
+        self.GraphMeasures = config.GraphMeasures
+        self.SubjectList = config.SubjectList
+        self.Frequencies = config.Frequencies
+        self.net_version = config.net_version
+
     def createFileName(self, suffix, filetype, **kwargs):
         """
         Function to create FileName string. The file name and location is inferred from the suffix.
@@ -146,6 +154,9 @@ class MEGManager(FileManager):
         self.CCDDir = os.path.join(self.ParentDir, 'CCD')
         self.SubjectAnalysisDir = os.path.join(self.ParentDir, 'GraphMeasures', 'SubjectAnalysis')
         self.NetMeasuresDir = os.path.join(self.ParentDir, 'GraphMeasures')
+        self.PlotDir = os.path.join(self.ParentDir, 'Plots')
+        if len(self.SubjectList) == 0:
+            self.SubjectList = self.getSubjectList()
 
     def getSubjectList(self):
         """Gets the subject numbers of the MEG - Datafiles.
@@ -161,10 +172,10 @@ class MEGManager(FileManager):
         FCFiles = glob.glob(os.path.join(self.FcDir, '*'))
         FCList = [Path.split('/')[-1] for Path in FCFiles]
         return FCList
-
-    def loadSignal(self, Subject):
+    
+    def loadMatFile(self, Subject):
         """
-        Loads the MEG - Signal of specified Subject
+        Loads the MEG - Signal of specified Subject from Mat file
         :param Subject: Subject ID
         :return: Dictionary containing Signal and Sampling Frequency
         """
@@ -174,92 +185,6 @@ class MEGManager(FileManager):
         signal = DataFile['AAL94_norm']['trial'][0] # Signal has to be transposed
         return signal.T, fsample
 
-    def loadGraphMeasures(self, suffix):
-        FileName = super().createFileName(suffix=suffix)
-        FilePath = os.path.join(self.NetMeasures, FileName + '.pkl')
-        DataFrame = pd.read_pickle(FilePath)
-        return DataFrame
-
-    def loadMetastability(self, suffix='Metastability'):
-        FileName = super().createFileName(suffix=suffix)
-        FilePath = os.path.join(self.MetaDir, FileName + '.pkl')
-        DataFrame = pd.read_pickle(FilePath)
-        return DataFrame
-
-    def saveGraphMeasures(self, DataDict, suffix):
-        FileName = super().createFileName(suffix=suffix)
-        FilePath = super().createFilePath(self.NetMeasures, FileName + '.pkl')
-        if self.exists(FilePath):
-            df = self._updateDataFrame(FilePath, DataDict)
-        else:
-            df = self.createDataFrame(DataDict)
-
-        df.to_pickle(FilePath)
-
-    def saveMetastability(self, DataDict, suffix='Metastability'):
-        FileName = self.createFileName(suffix=suffix)
-        FilePath = os.path.join(self.MetaDir, FileName + '.pkl')
-        if self.exists(suffix):
-            df = self._updateDataFrame(FilePath, DataDict)
-        else:
-            df = self.createDataFrame(DataDict)
-        df.to_pickle(FilePath)
-
-    def _createDataFrame(self, DataDict):
-        """
-        Creates DataFrame from DataDictionary using the index as orientation and
-        adds Group
-        :param DataDict: dictionary to convert into DataFrame
-        :return: DataFrame
-        """
-        for SubjectNum in DataDict.keys():
-            Group = self.getGroup(SubjectNum)
-            DataDict[SubjectNum].update({'Group': Group})
-        df = pd.DataFrame.from_dict(DataDict, orient='index')
-        return df
-
-    def _updateDataFrame(self, FilePath, DataDict):
-        """
-        Updates the DataFrame that is safed under the FilePath
-        :param FilePath: FilePath of DataFrame
-        :param DataDict: DataDictionary that is used to update DataFrame
-        :return: Updated DataFrame
-        """
-        previous = pd.read_pickle(FilePath)
-        previous = previous.to_dict('index')
-        updated = previous.update(DataDict)
-        df = self._createDataFrame(updated)
-        return df
-
-class PlotManager(MEGManager):
-    def __init__(self):
-        super().__init__()
-        self.PlotDir = os.path.join(self.ParentDir, 'Plots')
-        
-    def saveEnvelopePlot(self, fig, SubjectNum, CarrierFreq, suffix):
-        FileName = super().createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = super().createFilePath(self.PlotDir, 'Orthogonalized-Envelope', FileName + '.png')
-        fig.savefig(FilePath)
-
-    def saveFCPlot(self, fig, SubjectNum, CarrierFreq, suffix):
-        FileName = super().createFileName(suffix, Sub=SubjectNum, Freq=CarrierFreq)
-        FilePath = super().createFilePath(self.PlotDir, 'Functional-Connectivity', FileName + '.png')
-        fig.savefig(FilePath)
-
-    def saveMetaPlot(self, fig, suffix):
-        FileName = super().createFileName(suffix)
-        FilePath = super().createFilePath(self.PlotDir, 'Metastability', FileName + '.png')
-        fig.savefig(FilePath)
-
-    def saveMeanDiffPlot(self, fig, CarrierFreq, suffix):
-        FileName = super().createFileName(suffix, Freq=CarrierFreq)
-        FilePath = super().createFilePath(self.PlotDir, 'Graph-Measures', FileName + '.png')
-        fig.savefig(FilePath)
-
-    def saveAvgCCD(self, fig, CarrierFreq, suffix):
-        FileName = super().createFileName(suffix, Freq=CarrierFreq)
-        FilePath = super().createFilePath(self.PlotDir, 'Coherence-Connectivity-Dynamics', FileName + '.png')
-        fig.savefig(FilePath)
 
 class EvolutionManager(FileManager):
     """This class loads the DTI data from the SCZ-Dataset."""
