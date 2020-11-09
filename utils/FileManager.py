@@ -1,19 +1,23 @@
 import mat73
 import Z_config as config
-import os, glob
+import os, glob, sys
 import numpy as np
 import pandas as pd
 from utils.SignalAnalysis import Signal
 import matplotlib.pyplot as plt
 
 class FileManager():
-    """Class to manage all file dependencies of this project.
+    """
+    Class to manage all file dependencies of this project.
     """
     def __init__(self):
+        print('Loading File Manager.')
         # Configure according to config File
         self.ParentDir = config.ParentDir
         self.DataDir = config.DataDir
         self.InfoFile = config.InfoFile
+        self.NetDir = config.NetDir
+
         # Get Group IDs from Info sheet
         self.ControlIDs = self.getGroupIDs('CON')
         self.FEPIDs = self.getGroupIDs('FEP')
@@ -146,13 +150,12 @@ class MEGManager(FileManager):
         super().__init__()
         # Create the Directory Paths
         self.FcDir = os.path.join(self.ParentDir, 'FunctCon')
-        self.GroupStatsFC = os.path.join(self.ParentDir, 'GroupStatsFunctCon')
+        self.EdgeStatsDir = os.path.join(self.ParentDir, 'GroupStatsFunctCon')
         self.MSTDir = os.path.join(self.ParentDir, 'MinimalSpanningTree')
         self.BinFcDir = os.path.join(self.ParentDir, 'BinFunctCon')
         self.SplitFcDir = os.path.join(self.ParentDir, 'SplitFunctCon')
         self.MetaDir = os.path.join(self.ParentDir, 'Metastability')
         self.CCDDir = os.path.join(self.ParentDir, 'CCD')
-        self.SubjectAnalysisDir = os.path.join(self.ParentDir, 'GraphMeasures', 'SubjectAnalysis')
         self.NetMeasuresDir = os.path.join(self.ParentDir, 'GraphMeasures')
         self.PlotDir = os.path.join(self.ParentDir, 'Plots')
         if len(self.SubjectList) == 0:
@@ -184,71 +187,3 @@ class MEGManager(FileManager):
         fsample = int(DataFile['AAL94_norm']['fsample'])
         signal = DataFile['AAL94_norm']['trial'][0] # Signal has to be transposed
         return signal.T, fsample
-
-
-class EvolutionManager(FileManager):
-    """This class loads the DTI data from the SCZ-Dataset."""
-    def __init__(self, Group=None):
-        super().__init__()
-        if Group==None:
-            raise Exception('Please enter Group Name: HC, SCZ or SCZaff.')
-        else:
-            self.Group = Group
-        self.DTIDir = config.DTIDir
-        self.MEGDir = config.DataDir
-
-        if not os.path.isdir(self.DTIDir) or not os.path.isdir(self.MEGDir):
-            raise Exception('Data Directory does not exist.')
-
-    def loadDTIDataset(self, normalize=True):
-        """Loads subject data, normalizes and takes the average of connectivity and length matrices.
-        Averaged Cmat and LengthMat is saved in self.Cmat and self.LengthMat."""
-        self.SubData = {}
-        self._loadDTIFiles()
-        self.NumSubjects = len(self.SubData['Cmats'])
-
-        if self.NumSubjects == 0:
-            raise Exception('No connectivity matrices found.')
-
-        # Normalize connectivitiy matrices
-        if normalize:
-            self._normalizeCmats()
-
-        # Average connectivity and length matrices
-        self.Cmat = self._getSCAverage(self.SubData['Cmats'])
-        self.LengthMat = self._getSCAverage(self.SubData['LengthMats'])
-
-    def _loadDTIFiles(self):
-        """Function loads all of the subject data into self.SubData dictionary"""
-        import scipy.io
-
-        self.CMFiles = glob.glob(os.path.join(self.DTIDir + self.Group, '**/*CM.mat'), recursive=True)
-        self.LENFiles = glob.glob(os.path.join(self.DTIDir + self.Group, '**/*LEN.mat'), recursive=True)
-
-        self.SubData['Cmats'] = []
-        self.SubData['LengthMats'] = []
-
-        for cm, len in zip(self.CMFiles, self.LENFiles):
-            CMFile = scipy.io.loadmat(cm)
-            for key in CMFile:
-                if isinstance(CMFile[key], np.ndarray):
-                    self.SubData['Cmats'].append(CMFile[key])
-                    break
-            LENFile = scipy.io.loadmat(len)
-            for key in LENFile:
-                if isinstance(LENFile[key], np.ndarray):
-                    self.SubData['LengthMats'].append(LENFile[key])
-                    break
-
-    def _normalizeCmats(self, method="max"):
-        if method == "max":
-            for c in range(self.NumSubjects):
-                maximum = np.max(self.SubData['Cmats'][c])
-                self.SubData['Cmats'][c]  = self.SubData['Cmats'][c] / maximum
-
-    def _getSCAverage(self, Mats):
-        mat = np.zeros(Mats[0].shape)
-        for m in Mats:
-            mat += m
-        mat = mat/len(Mats)
-        return mat

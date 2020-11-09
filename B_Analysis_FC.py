@@ -8,6 +8,7 @@ from bct.nbs import nbs_bct
 import pandas as pd
 import scipy
 from multiprocessing import Pool
+from V_Visualization import visualization
 
 class analyzer(MEGManager): 
     """
@@ -20,7 +21,6 @@ class analyzer(MEGManager):
         print('Started stacking.')
         for FreqBand, Limits in self.FrequencyBands.items():
             print(f'Processing Freq {FreqBand}.')
-            AllFCs = []
             Subjects = []
             for Group, SubjectList in self.GroupIDs.items(): 
                 GroupFCs = []
@@ -29,21 +29,15 @@ class analyzer(MEGManager):
                     FC = np.load(self.find(suffix='FC', filetype='.npy', Sub=Subject, Freq=FreqBand))
                     GroupFCs.append(FC)
                     Subjects.append(Subject)
-                AllFCs.extend(GroupFCs)
                 GroupFCs = np.stack(GroupFCs)
 
                 # Save stacked data
                 FileName = self.createFileName(suffix='stacked-FCs',filetype='.npy', Group=Group, Freq=FreqBand)  
-                FilePath = self.createFilePath(self.GroupStatsFC, 'Data', Group, FileName)
+                FilePath = self.createFilePath(self.EdgeStatsDir, 'Stacked-Data', Group, FileName)
                 np.save(FilePath, GroupFCs)
-                
-            # Save stacked data
-            FileName = self.createFileName(suffix='stacked-FCs',filetype='.npy', Freq=FreqBand)  
-            FilePath = self.createFilePath(self.GroupStatsFC, 'Data', FileName)
-            np.save(FilePath, AllFCs)
         print('Finished stacking.')
 
-    def calc_descr_stats(self):
+    def calc_group_mean_fc(self):
         """
         Calculates mean, sd over groups and over subjects
         """
@@ -52,54 +46,43 @@ class analyzer(MEGManager):
             # Find File and load file
             GroupFCs = np.load(self.find(suffix='stacked-FCs',filetype='.npy', Group=Group, Freq=FreqBand))
             
-            # Create Mean and Std FC
+            # Create Mean FC
             MeanFC = np.mean(GroupFCs, axis=0)
-            StdFC = np.std(GroupFCs, axis=0)
             
-            # Save mean and std matrix
-            FileName = self.createFileName(suffix='Mean-FC',filetype='.npy', Group=Group, Freq=FreqBand)  
-            FilePath = self.createFilePath(self.GroupStatsFC, 'Mean', Group, FileName)
+            # Save mean matrix
+            FileName = self.createFileName(suffix='Group-Mean-FC',filetype='.npy', Group=Group, Freq=FreqBand)  
+            FilePath = self.createFilePath(self.EdgeStatsDir, 'Group-Mean-FC', Group, FileName)
             np.save(FilePath, MeanFC)
-            
-            FileName = self.createFileName(suffix='Std-FC',filetype='.npy', Group=Group, Freq=FreqBand)  
-            FilePath = self.createFilePath(self.GroupStatsFC, 'StDev', Group, FileName)
-            np.save(FilePath, StdFC)
 
-            # Calculate the mean and std edge value for each sub and save to array
-            MeanEdge = np.mean(GroupFCs, axis=(1,2))
-            StdEdge = np.std(GroupFCs, axis=(1,2))
-
-            # Save mean and std edge values
-            FileName = self.createFileName(suffix='Mean-Edge',filetype='.npy', Group=Group, Freq=FreqBand)  
-            FilePath = self.createFilePath(self.GroupStatsFC, 'Mean', Group, FileName)
-            np.save(FilePath, MeanEdge)
-            
-            FileName = self.createFileName(suffix='Std-Edge',filetype='.npy', Group=Group, Freq=FreqBand)  
-            FilePath = self.createFilePath(self.GroupStatsFC, 'StDev', Group, FileName)
-            np.save(FilePath, StdEdge)
         print('Finished calculating descr stats.')
 
-    def create_mean_edge_df(self):
+    def calc_mean_edge(self):
         """
         Creates DataFrame with mean edge values for plotting.
         """
         print('Creating mean edge dataframe.')
         DataDict = {'Subject':[], 'Group':[]}
         DataDict.update({key:[] for key in self.FrequencyBands.keys()})
-        # iterate over all freqs and groups
+        
+        # iterate over all subjects and frequencies and save mean edge value to DataDict
         for Group, Subjects in self.GroupIDs.items():
-            DataDict['Group'].extend([Group]*len(Subjects))
-            DataDict['Subject'].extend(Subjects)
-            for FreqBand in self.FrequencyBands.keys():
-                Data = np.load(self.find(suffix='Mean-Edge',filetype='.npy', Group=Group, Freq=FreqBand))
-                DataDict[FreqBand].extend(Data.tolist())
+            for Subject in Subjects:
+                DataDict['Group'].append(Group); DataDict['Subject'].append(Subject)
+                for FreqBand in self.FrequencyBands.keys():
+                    # load FC and get mean
+                    FC = np.load(self.find(suffix='FC', filetype='.npy', Sub=Subject, Freq=FreqBand))
+                    edge_mean = np.mean(FC)                    
+                    DataDict[FreqBand].append(edge_mean)
+
         DataFrame = pd.DataFrame(DataDict)
-        FileName = self.createFileName(suffix='Subject-Mean_Edge-Weights',filetype='.pkl', Freq=self.Frequencies)
-        FilePath = self.createFilePath(self.GroupStatsFC, 'Mean', FileName)
+        # Save to 
+        FileName = self.createFileName(suffix='Mean-Edge-Weights',filetype='.pkl', Freq=self.Frequencies)
+        FilePath = self.createFilePath(self.EdgeStatsDir, 'Mean-Edge-Weights', FileName)
         DataFrame.to_pickle(FilePath)
+        
         print('Mean edge dataframe created.')
 
-    def create_GBC_df(self):
+    def calc_GBC(self):
         """
         Calculates GBC and saves it to Dataframe
         """ 
@@ -122,7 +105,7 @@ class analyzer(MEGManager):
         
         df = pd.DataFrame(GBCDict)
         FileName = self.createFileName(suffix='GBC',filetype='.pkl', Freq=self.Frequencies)
-        FilePath = self.createFilePath(self.GroupStatsFC, 'GBC', FileName)
+        FilePath = self.createFilePath(self.EdgeStatsDir, 'GBC', FileName)
         df.to_pickle(FilePath)
 
     def calc_nbs(self):
@@ -139,13 +122,14 @@ class analyzer(MEGManager):
         with Pool(processes) as p: 
             dfList = p.map(self._parallel_nbs, self.FrequencyBands.keys())
         pvaldf = pd.concat(dfList)
-        FileName = self.createFileName(suffix='NBS-P-Values', filetype='.npy', Freq=self.Frequencies)
-        FilePath = self.createFilePath(self.GroupStatsFC, 'NetBasedStats', FileName)
+        FileName = self.createFileName(suffix='NBS-P-Values', filetype='.pkl', Freq=self.Frequencies)
+        FilePath = self.createFilePath(self.EdgeStatsDir, 'NetBasedStats', 'P-Values', FileName)
         pd.to_pickle(pvaldf, FilePath)
         
     def _parallel_nbs(self, FreqBand): 
         """
         Calculates nbs for one Frequency band. Is called in calc_nbs. 
+        :return dataframe with pvals of 
         """
         print(f'Processing {FreqBand}.')
         ResultDict = {'Freq':[], 'Threshold':[], 'P-Val':[], 'Component-File':[], 'Index':[]}
@@ -160,12 +144,13 @@ class analyzer(MEGManager):
         # Set thresholds to iterate over with NBS algorithm
         thresholds = [2.056]
         
-        i = 0
+        i = 0 # Counter to set index of dataframe 
         for thresh in thresholds:
             print(f'Threshold: {thresh}')
             # Set Component File Path
-            CompFileName = self.createFileName(suffix='Component-Adj',filetype='.npy', Freq=FreqBand, Thresh=thresh)
-            CompFilePath = self.createFilePath(self.GroupStatsFC, 'NetBasedStats', CompFileName)
+            CompFileName = self.createFileName(suffix='Component-Adj', filetype='.npy', Freq=FreqBand, Thresh=thresh)
+            CompFilePath = self.createFilePath(self.EdgeStatsDir, 'NetBasedStats', 'Components', CompFileName)
+
             pval, adj, null = nbs_bct(GroupFCList[0], GroupFCList[1], thresh=2, k=1000)
             
             for idx, p in enumerate(pval): 
@@ -176,7 +161,8 @@ class analyzer(MEGManager):
 
             # Save Null-Sample and Component to File
             NullFileName = self.createFileName(suffix='Null-Sample',filetype='.npy', Freq=FreqBand, Thresh=thresh)
-            NullFilePath = self.createFilePath(self.GroupStatsFC, 'NetBasedStats', NullFileName)
+            NullFilePath = self.createFilePath(self.EdgeStatsDir, 'NetBasedStats', 'Null-Sample', NullFileName)
+            
             np.save(NullFilePath, null)
             np.save(CompFilePath, adj)
 
@@ -227,7 +213,7 @@ class analyzer(MEGManager):
             #print(p_bon[:10])
             #print(p_fdr[:10])
         
-    def comp_net_measures(self):
+    def calc_net_measures(self):
         """
         Function to compute network measures for each subject, results are safed into pd.DataFrame
         """
@@ -243,7 +229,7 @@ class analyzer(MEGManager):
         DataFrame = pd.concat(dfList,ignore_index=True)    
         # save DataFrame to File
         FileName = self.createFileName(suffix='Graph-Measures-'+self.net_version, filetype='.pkl')
-        FilePath = self.createFilePath(self.NetMeasuresDir, FileName)
+        FilePath = self.createFilePath(self.NetMeasuresDir, self.net_version, FileName)
         DataFrame.to_pickle(FilePath)
         print('Finished calculating graph measures')  
     
@@ -279,12 +265,24 @@ class analyzer(MEGManager):
 if __name__ == "__main__":
     start = time()
     analyz = analyzer()
+    viz = visualization()
+    
     analyz.stack_fcs()
-    analyz.calc_descr_stats()
-    analyz.create_mean_edge_df()
-    analyz.create_GBC_df()
-    #analyz.test_region_GBC()
+    viz.plot_edge_dist()
+    
+    analyz.calc_group_mean_fc()
+    viz.plot_group_mean_fc()
+    
+    analyz.calc_mean_edge()
+    viz.plot_mean_edge()
+    viz.plot_cross_hemi_corr()
+    
+    analyz.calc_GBC()
+    viz.plot_avg_GBC()
+    
     analyz.calc_nbs()
-    analyz.comp_net_measures()
+    
+    analyz.calc_net_measures()
+    viz.plot_net_measures()
     end = time()
     print('Time: ', end-start)

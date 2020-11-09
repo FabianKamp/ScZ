@@ -6,23 +6,7 @@ from multiprocessing import Pool
 import timeit
 from utils.ConnFunc import *
 
-def orth_corr(ComplexSignal, SignalEnv, fsample, ConjdivEnv):
-	"""
-	Computes orthogonalized correlation of the envelope of the complex signal (nx1 dim array) and the signal envelope  (nxm dim array). 
-	This function is called by signal.getOrthFC()
-	:param ComplexSignal Complex 
-	"""
-	# Orthogonalize signal
-	OrthSignal = (ComplexSignal * ConjdivEnv).imag
-	OrthEnv = np.abs(OrthSignal)
-	# Envelope Correlation
-	if config.conn_mode=='orth-lowpass-corr':
-		# Low-Pass filter
-		OrthEnv = filter_data(OrthEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
-		SignalEnv = filter_data(SignalEnv, fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)	
-	corr_mat = pearson(OrthEnv, SignalEnv)	
-	corr = np.diag(corr_mat)
-	return corr
+
 
 class Signal():
 	"""This class handles the signal analysis - band pass filtering,
@@ -49,31 +33,31 @@ class Signal():
 		"""
 		lowerfreq = Limits[0]
 		upperfreq = Limits[1]
-		filteredSignal = filter_data(self.Signal, self.fsample, lowerfreq, upperfreq,
+		filteredSignal = filter_data(self.Signal, self.fsample, l_freq=lowerfreq, h_freq=upperfreq,
 									 fir_window='hamming', verbose=False)
 		return filteredSignal
 
 	def getEnvelope(self, Limits):
 		filteredSignal = self.getFrequencyBand(Limits)
 		n_fft = next_fast_len(self.TimePoints)
-		complex_signal = hilbert(filteredSignal, N=n_fft, axis=-1)[..., :self.TimePoints]
+		complex_signal = hilbert(filteredSignal, N=n_fft, axis=-1)
 		filteredEnvelope = np.abs(complex_signal)
 		return filteredEnvelope
 
-	def getResampleNum(self, TargetFreq):
-		downsamplingFactor = TargetFreq/self.fsample
-		return int(self.TimePoints * downsamplingFactor)
-
-	def downsampleSignal(self, resample_num=None, TargetFreq=None):
+	def resampleSignal(self, resample_num=None, TargetFreq=None):
+		"""
+		Resamples Signal to number of resample points or to target frequency
+		"""
 		from scipy.signal import resample
 		if TargetFreq is not None:
-			resample_num = self.getResampleNum(TargetFreq)
+			downsamplingFactor = TargetFreq/self.fsample
+			resample_num = int(self.Signal.shape[1]*downsamplingFactor)
 
 		if self.Signal.shape[1] < resample_num:
-			raise Exception('Target sample size must be smaller than original frequency')
-		re_signal = np.empty((self.Signal.shape[0], resample_num))
-		for row in range(self.Signal.shape[0]):
-			re_signal[row, :] = resample(self.Signal[row, :], resample_num)
+			raise Exception('Target sample size should be smaller than original frequency')
+		
+		# Resample
+		re_signal = resample(self.Signal, num=resample_num, axis=-1)
 		
 		# Save to signal
 		self.Signal = re_signal
@@ -82,8 +66,14 @@ class Signal():
 		downsamplingFactor = resample_num / self.TimePoints
 		self.fsample = self.fsample * downsamplingFactor
 		self.NumberRegions, self.TimePoints = self.Signal.shape
+		return self.Signal
 
 	def getFC(self, Limits, pad=100, processes=1):
+		"""
+		Computes the Functional Connectivity Matrix based on the signal envelope
+		Takes settings from configuration File. If conn_mode contains 
+		orth the signal is orthogonalized in parallel using _parallel_orth_corr
+		"""
 		# Filter signal
 		FilteredSignal = self.getFrequencyBand(Limits)
 
@@ -105,13 +95,31 @@ class Signal():
 
 		# Compute orthogonalization and correlation in parallel		
 		with Pool(processes=processes) as p: 
-			result = p.starmap(orth_corr, [(Complex, SignalEnv, self.fsample, ConjdivEnv) for Complex in ComplexSignal])
+			result = p.starmap(self._parallel_orth_corr, [(Complex, SignalEnv, ConjdivEnv) for Complex in ComplexSignal])
 		FC = np.array(result)
 
 		# Make the Corr Matrix symmetric
 		FC = (FC.T + FC) / 2.
 		return FC
 	
+	def _parallel_orth_corr(self, ComplexSignal, SignalEnv, ConjdivEnv):
+		"""
+		Computes orthogonalized correlation of the envelope of the complex signal (nx1 dim array) and the signal envelope  (nxm dim array). 
+		This function is called by signal.getOrthFC()
+		:param ComplexSignal Complex 
+		"""
+		# Orthogonalize signal
+		OrthSignal = (ComplexSignal * ConjdivEnv).imag
+		OrthEnv = np.abs(OrthSignal)
+		# Envelope Correlation
+		if 'lowpass' in config.conn_mode:
+			# Low-Pass filter
+			OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
+			SignalEnv = filter_data(SignalEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)	
+		corr_mat = pearson(OrthEnv, SignalEnv)	
+		corr = np.diag(corr_mat)
+		return corr
+
 	def getOrthEnvelope(self, Index, ReferenceIndex, FreqBand, pad=100, LowPass=False):
 		"""
 		Function to compute the Orthogonalized Envelope of the indexed signal with respect to a reference signal.
@@ -140,47 +148,89 @@ class Signal():
 
 		return OrthEnv, ReferenceEnv
 
-	def getMetastability(self):
-		CentrLowEnv = self.Signal - np.mean(self.Signal, axis=-1, keepdims=True) # substract mean from Low Envelope
-		ComplexLowEnv = hilbert(CentrLowEnv, axis=-1) # converts low pass filtered envelope to complex signal
-		LowEnvPhase = np.angle(ComplexLowEnv)
+	def getMetastability(self, Limits):
+		"""
+		Computes Kuramoto Parameter of low pass envelope and Metastability as standard deviation 
+		of the Kuramoto Parameter. 
+		:params Frequency Band Limits to compute the Envelope
+		"""
+		envelope = self.getEnvelope(Limits=Limits)
+		# Demean envelope
+		envelope -= np.mean(envelope, axis=-1, keepdims=True)
+		# Low pass filter envelope
+		l_envelope = Signal(envelope, fsample=self.fsample).getFrequencyBand(Limits=[0, config.LowPassFreq])
+		
+		# Compute the Kuramoto Parameter
+		analytic = hilbert(l_envelope, axis=-1)
+		phase = np.angle(analytic)
+		ImPhase = phase * 1j
+		SumPhase = np.sum(np.exp(ImPhase), axis=0) 
+		Kuramoto = np.abs(SumPhase) / ImPhase.shape[0]
 
-		ImPhase = LowEnvPhase * 1j  # Multiply with imaginary element
-		SumPhase = np.sum(np.exp(ImPhase), axis=0)  # Sum over all areas
-		self.Kuramoto = np.abs(SumPhase) / ImPhase.shape[0]  # Compute kuramoto parameter
-		self.Metastability = np.std(self.Kuramoto, ddof=1)
+		# Metastability is standard deviation of Kuramoto Parameter  
+		Metastability = np.std(Kuramoto, axis=-1)
+		
+		return Kuramoto, Metastability
 
-		return self.Metastability
-
-	def getCCD(self, Limits):
+	def getCCD(self, Limits, DownFreq=5):
 		""" Defines the Coherence Connectivity Dynamics following the description of Deco et. al 2017
 		:param signal: numpy ndarray containing the signal envelope
 		:return: numpy nd array containing the CCD matrix
 		"""
-		print('Calculating CCD.')
-		# Get envelope and phase of envelope
-		env = self.getEnvelope(Limits)
-		analytic_signal = hilbert(env, axis=-1)[:,100:-100]
-		phase = np.angle(analytic_signal)
+		envelope = self.getEnvelope(Limits=Limits)
+		# Demean envelope
+		envelope -= np.mean(envelope, axis=-1, keepdims=True)
+		# Low pass filter envelope
+		l_envelope = Signal(envelope, fsample=self.fsample).getFrequencyBand(Limits=[0, config.LowPassFreq])
+		# Call the downsampling function twice to downsample to DownFreq
+		ld_envelope = Signal(l_envelope, fsample=self.fsample).resampleSignal(TargetFreq=DownFreq)
+		# Calculate V and CCD. 
+		V = self._calc_v(ld_envelope)
+		#V = self._smooth_mat(V,width=10)
+		CCD = self._calc_ccd(V)
+		return CCD.astype('float32')
+	
+	def _calc_v(self, signal): 
+		"""
+		Computes V matrix which is used to compute the CCD matrix. 
+		V contains the cosine phase difference between all pairs of the 
+		signal.
+		:return V mat
+		"""
+		#calculate phase of envelope
+		analytic = hilbert(signal, axis=-1)
+		phases = np.angle(analytic)
 
-		timepoints = env.shape[1]
-		assert timepoints <= 15000, 'CCD matrix too big, downsample to lower frequency'
+		#Calculate phase differences 
+		diff_phases = [np.abs(phase1-phase2) for phase1 in phases for phase2 in phases]
+		diff_phases = np.stack(diff_phases)
 
-		# Compute phase difference
-		nnodes = env.shape[0]
-		phase_diff = [np.abs(phase[i, :] - phase[j, :]) for i in range(nnodes - 1) for j in range(i + 1, nnodes)]
-		phase_diff = np.stack(phase_diff)
-
-		# Compute instantaneous coherence
-		V = np.cos(phase_diff)
-
-		# Compute Coherence Connectivity matrix
-		CCD_mat = np.zeros((timepoints, timepoints))
-		for t1 in range(timepoints):
-			for t2 in range(t1, timepoints):
-				prod = np.dot(V[:, t1], V[:, t2])  # Vector product
-				magn = np.linalg.norm(V[:, t1]) * np.linalg.norm(V[:, t2])  # Vector magnitude
-				CCD_mat[t1, t2] = prod / magn  # Normalize vector product and save in matrix
-				CCD_mat[t2, t1] = CCD_mat[t1, t2]  # Make matrix symmetrical
-
-		return CCD_mat.astype('float32')
+		# V is the cosine of the absolute phase differences
+		v = np.cos(diff_phases)
+		return v
+	
+	def _calc_ccd(self, v):
+		"""
+		Computes CCD matrix of signal. This function is called by getCCD. 
+		Uses vector norm to calculate the cosine similarity 
+		:params V mat which is computed in _calc_v
+		"""
+		from scipy.linalg import norm
+		# normalize matrix along first axis
+		v_norm = norm(v, axis=0)
+		# Calculate the ccd as normalized vector product of all 
+		# column vectors in v matrix
+		ccd = np.matmul(v.T, v)
+		ccd /= v_norm 
+		ccd = ccd.T / v_norm 
+		return ccd 
+	
+	def _smooth_mat(self, mat, width):
+		"""
+		Takes mean of valuew in windows with fixed width.
+		"""
+		mat = mat[:,:width*int(mat.shape[1]//width)]
+		re_mat = mat.reshape(-1, int(mat.shape[1]/width), width)
+		mean_mat = np.mean(re_mat, axis=-1)
+		return mean_mat
+		

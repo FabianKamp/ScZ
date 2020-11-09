@@ -22,7 +22,7 @@ class visualization(MEGManager):
         """
         print('Plotting Edge Distribution')
         FileName = self.createFileName(suffix='Group_Edge-Weights',filetype='.pdf', Freq=self.Frequencies)
-        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', FileName)
+        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', 'Edge-Dist', FileName)
 
         DataDict = {FreqBand:[] for FreqBand in self.FrequencyBands.keys()}
         DataDict.update({'Group':[]})
@@ -62,20 +62,20 @@ class visualization(MEGManager):
                 g.tight_layout()        
                 pdf.savefig() 
 
-    def plot_group_mean_edge(self): 
+    def plot_group_mean_fc(self): 
         """
         Plots the Distribution of group mean edges
         """
         print('Plotting Group Mean FC')
-        FileName = self.createFileName(suffix='Group-Mean_Edge-Weights', filetype='.pdf', Freq=self.Frequencies)
-        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', FileName)
+        FileName = self.createFileName(suffix='Group-Mean-FC', filetype='.pdf', Freq=self.Frequencies)
+        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', 'Group-Mean-FC', FileName)
         DataDict = {FreqBand:{} for FreqBand in self.FrequencyBands.keys()}
         min_val = 1
         max_val = 0
         
         # Load Data to Data Dict
         for FreqBand, Group in itertools.product(self.FrequencyBands.keys(), self.GroupIDs.keys()):
-            Data = np.load(self.find(suffix='Mean-FC', filetype='.npy', Group=Group, Freq=FreqBand))
+            Data = np.load(self.find(suffix='Group-Mean-FC', filetype='.npy', Group=Group, Freq=FreqBand))
             DataDict[FreqBand].update({Group:Data})
             min_val = min(min_val, np.min(Data))
             max_val = max(max_val, np.max(Data))
@@ -114,15 +114,15 @@ class visualization(MEGManager):
                 cbar_ax.yaxis.set_major_locator(plt.MaxNLocator(4))
                 pdf.savefig(fig)
 
-    def plot_subject_mean_edge(self):
+    def plot_mean_edge(self):
         """
         Plot distribution of subject-mean edge values
         """
         print('Plotting Subject Mean Edge')
         # Load Data File
-        df = pd.read_pickle(self.find(suffix='Subject-Mean_Edge-Weights', filetype='.pkl', Freq=self.Frequencies)) 
-        FileName = self.createFileName(suffix='Subject-Mean_Edge-Weights', filetype='.pdf', Freq=self.Frequencies)
-        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', FileName)
+        df = pd.read_pickle(self.find(suffix='Mean-Edge-Weights', filetype='.pkl', Freq=self.Frequencies)) 
+        FileName = self.createFileName(suffix='Mean-Edge-Weights', filetype='.pdf', Freq=self.Frequencies)
+        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', 'Mean-Edge-Weights', FileName)
         with PdfPages(FilePath) as pdf:
             df = pd.melt(df, id_vars=['Subject','Group'], value_vars=list(self.FrequencyBands.keys()),
             var_name='Frequency', value_name='Mean Edge Weight') 
@@ -143,7 +143,7 @@ class visualization(MEGManager):
         print('Plotting Avg. GBC')
         df = pd.read_pickle(self.find(suffix='GBC',filetype='.pkl', Freq=self.Frequencies))
         FileName = self.createFileName(suffix='Mean-GBC', filetype='.pdf', Freq=self.Frequencies)
-        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', FileName)
+        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', 'GBC', FileName)
         with PdfPages(FilePath) as pdf:
             sns.set_style("whitegrid")
             fsize = len(list(self.FrequencyBands.keys()))
@@ -184,7 +184,7 @@ class visualization(MEGManager):
         print('Plotting Hemispheric Correlations')
         DataDict = {'Group':[], 'Freq':[], 'Cross-Hemi. Correlation':[], 'Region':[], 'Code':[]}
         for Group, FreqBand in itertools.product(self.GroupIDs.keys(), self.FrequencyBands.keys()):
-            FC = np.load(self.find(suffix='Mean-FC', filetype='.npy', Group=Group, Freq=FreqBand))
+            FC = np.load(self.find(suffix='Group-Mean-FC', filetype='.npy', Group=Group, Freq=FreqBand))
             NodeCodes = self.RegionCodes
             np.fill_diagonal(FC,0)
             network = net.network(FC, NodeCodes)
@@ -217,34 +217,44 @@ class visualization(MEGManager):
         
     def plot_net_measures(self): 
         """
-        Function to plot net measures over different Frequency Values
+        Function to plot net measures over different Frequency Values. 
+        Dump each plot into pdf file.
         """
         # Load Data 
         suffix = 'Graph-Measures-'+self.net_version
         df = pd.read_pickle(self.find(suffix=suffix, filetype='.pkl'))
         # Set Pdf-FilePath
         FileName = self.createFileName(suffix=suffix, filetype='.pdf')
-        FilePath = self.createFilePath(self.PlotDir, 'Graph-Measures', FileName)
+        FilePath = self.createFilePath(self.PlotDir, 'Graph-Measures', self.net_version, FileName)
 
         # Plot net measures
         with PdfPages(FilePath) as pdf:
             for Measure in self.GraphMeasures.keys():
                 sns.set_theme(style="whitegrid")
                 fig, ax = plt.subplots(figsize=(12,8))
-                ax = sns.violinplot(x="Frequency", y=Measure, hue="Group", data=df, palette="Set2", split=True,
-                                    scale="count", inner="stick")
+                ax = sns.bocplot(x="Frequency", y=Measure, hue="Group", data=df, palette="Set2")
                 ax.set_title(Measure)
                 pdf.savefig()
 
-if __name__ == "__main__":
-    start  = time()
-    viz=visualization()
-    viz.plot_group_mean_edge()
-    viz.plot_edge_dist()
-    viz.plot_cross_hemi_corr()
-    viz.plot_edge_dist()
-    viz.plot_net_measures()
-    viz.plot_subject_mean_edge()
-    viz.plot_avg_GBC()
-    end = time()
-    print('Time: ', end-start)
+    def plot_meta(self):
+        """
+        Plots Metastability Measure over Frequency Bands
+        """ 
+        print('Plotting Metastability')
+        # Load Data
+        FileName = self.createFileName(suffix='Metastability', filetype='.pkl', Freq=self.Frequencies, no_conn=True)
+        FilePath = self.createFilePath(self.MetaDir, FileName)        
+        data = pd.read_pickle(FilePath)
+
+        # Create pdf FilePath
+        FileName = self.createFileName(suffix='Metastability', filetype='.pdf', Freq=self.Frequencies, no_conn=True)
+        FilePath = self.createFilePath(self.PlotDir, 'Metastability', FileName)
+        
+        with PdfPages(FilePath) as pdf:
+            sns.set_theme(style="whitegrid")
+            fig, ax = plt.subplots(figsize=(12,8))
+            ax = sns.boxplot(data=data, x='Frequency', y='Metastability', hue='Group', palette='Set2')
+            ax.set_ylabel('Kuramoto SD')
+            ax.set_title('Metastability')
+            ax.legend(loc='upper right')
+            pdf.savefig()
