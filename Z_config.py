@@ -36,11 +36,12 @@ Frequencies = 'Standard' # 'Low-Gamma', 'Standard', 'Complete'
 # TODO: Specify connectivity mode ~ Measure for Edges (orth-lowpass correlation, orth correlation etc.)
 conn_mode = 'orth-lowpass-corr' # 'orth-lowpass-corr', 'orth-corr'
 # TODO: Specify which Network version to use ~ MST, Binarized etc.
-net_version = 'FC' # 'FC', 'MST'
+net_version = 'FC' # 'FC', 'MST', 'Binarized-FC-Thresh-[threshold]'
 
 # Specify dictionary of the standard frequency bands
 if Frequencies=='Standard':
     FrequencyBands = {'Delta': [1,3], 'Theta': [4,7], 'Alpha':[8,12], 'Beta': [18, 22], 'Low-Gamma-1':[32,36], 'Low-Gamma-2':[38,42]}
+
 if Frequencies=='Narrow-Low-Gamma': 
     FrequencyBands = {'Gamma-1':[30,34], 'Gamma-2':[34,38], 'Gamma-3':[38,42], 'Gamma-4':[42,46]}
     

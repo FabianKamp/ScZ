@@ -100,7 +100,7 @@ class preparation(MEGManager):
                 # Binarizing
                 binarized_FC = Network.binarize_net(thresh)
                 FileName = self.createFileName(suffix=f'Binarized-FC-Thresh-{thresh}',filetype='.npy', Sub=Subject, Freq=FreqBand)
-                FilePath = self.createFilePath(self.BinDir, f'Thresh-{thresh}', Subject, FileName)
+                FilePath = self.createFilePath(self.BinFcDir, f'Thresh-{thresh}', Subject, FileName)
                 np.save(FilePath, binarized_FC)
         print('Binarizing done.')
 
@@ -108,7 +108,8 @@ if __name__ == "__main__":
     start = time()
     prep = preparation()
     #prep.calc_FC()
-    prep.calc_mst()
+    #prep.calc_mst()
+    prep.calc_bin()
     #prep.z_trans_FC()
     end = time()
     print('Time: ', end-start)

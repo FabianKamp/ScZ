@@ -19,9 +19,9 @@ class FileManager():
         self.NetDir = config.NetDir
 
         # Get Group IDs from Info sheet
-        self.ControlIDs = self.getGroupIDs('CON')
-        self.FEPIDs = self.getGroupIDs('FEP')
-        self.GroupIDs = {'Control': self.ControlIDs, 'FEP': self.FEPIDs}
+        ControlIDs = self.getGroupIDs('CON')
+        FEPIDs = self.getGroupIDs('FEP')
+        self.GroupIDs = {'Control': ControlIDs, 'FEP': FEPIDs}
 
         # AAL name file 
         self.RegionNames, self.RegionCodes = self.getRegionNames()
@@ -55,6 +55,9 @@ class FileManager():
         return FileName
 
     def createFilePath(self, *args):
+        """
+        Creates full FilePath, if makes directories if they don't exist
+        """
         Directory = ''
         for arg in args[:-1]:
             Directory = os.path.join(Directory, arg)
@@ -72,6 +75,9 @@ class FileManager():
             return False
     
     def find(self, suffix, filetype, **kwargs):
+        """
+        Finds File within file structure.
+        """
         FileName = self.createFileName(suffix, filetype, **kwargs)
         InnerPath = glob.glob(os.path.join(self.ParentDir, f'**/{FileName}'), recursive=True)
         if len(InnerPath)>1:
@@ -95,15 +101,34 @@ class FileManager():
         IDs = list(IDs.dropna())
         return IDs
 
+    def _getLocation(self, df, value, all=False):
+        """
+        Gets the first location (idx) of the value in the dataframe.
+        :param df: panda.DataFrame
+        :param value: str, searched string
+        :param all: if true, returns all occurences of value
+        :return: list of indices
+        """
+        poslist = []
+        temp = df.isin([value]).any()
+        columnlist = list(temp[temp].index)
+        for column in columnlist:
+            rows = df[column][df[column] == value].index
+            for row in rows:
+                poslist.append([row, column])
+                if not all:
+                    return poslist[0]
+        return poslist
+
     def getGroup(self, SubjectNum):
         """
         Returns the Group that Subject ID belongs to
         :param SubjectNum:
         :return:
         """
-        if SubjectNum in self.FEPIDs:
+        if SubjectNum in self.GroupIDs['FEP']:
             Group = 'FEP'
-        elif SubjectNum in self.ControlIDs:
+        elif SubjectNum in self.GroupIDs['Control']:
             Group = 'Control'
         else:
             Group = None
@@ -125,32 +150,24 @@ class FileManager():
         with open(config.AAL2CoordsFile, 'r') as file: 
             CoordDict = json.load(file)
         return CoordDict
+    
+    def _getRegionCoordsfromAAL(self):
+        coords = plotting.find_parcellation_cut_coords('aal2.nii.gz')[:94]
+        with open('aal2.nii.txt', 'r') as file:
+            f=file.readlines()
 
-    def _getLocation(self, df, value, all=False):
-        """
-        Gets the first location (idx) of the value in the dataframe.
-        :param df: panda.DataFrame
-        :param value: str, searched string
-        :param all: if true, returns all occurences of value
-        :return: list of indices
-        """
-        poslist = []
-        temp = df.isin([value]).any()
-        columnlist = list(temp[temp].index)
-        for column in columnlist:
-            rows = df[column][df[column] == value].index
-            for row in rows:
-                poslist.append([row, column])
-                if not all:
-                    return poslist[0]
-        return poslist
+        labels=[line[:-1] for line in f][:94]
+        data = {label:coord for label, coord in zip(labels, coords.tolist())}
+
+        with open(config.AAL2CoordsFile, mode='w') as outfile:
+            json.dump(data, outfile)
      
 class MEGManager(FileManager):
     def __init__(self):
         super().__init__()
         # Create the Directory Paths
         self.FcDir = os.path.join(self.ParentDir, 'FunctCon')
-        self.EdgeStatsDir = os.path.join(self.ParentDir, 'GroupStatsFunctCon')
+        self.EdgeStatsDir = os.path.join(self.ParentDir, 'EdgeStats')
         self.MSTDir = os.path.join(self.ParentDir, 'MinimalSpanningTree')
         self.BinFcDir = os.path.join(self.ParentDir, 'BinFunctCon')
         self.SplitFcDir = os.path.join(self.ParentDir, 'SplitFunctCon')

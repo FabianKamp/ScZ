@@ -155,6 +155,25 @@ class visualization(MEGManager):
             #ax.set_xlim(np.min(df['Mean Edge Weight'])-0.005, np.max(df['Mean Edge Weight'])+0.005)           
             pdf.savefig(bbox_inches='tight')
 
+    def plot_avg_GBC_diff(self): 
+        import dabest
+        df_long = pd.read_pickle(self.find(suffix='GBC',filetype='.pkl', Freq=self.Frequencies))
+        df_long = df_long[df_long['Avg. GBC']<=0.3]
+        df_wide = pd.pivot_table(df_long, index=['Group', 'Subject'], columns='Frequency', values='Avg. GBC').reset_index()
+        
+        # Create FilePath
+        FileName = self.createFileName(suffix='Mean-GBC-Diff', filetype='.pdf', Freq=self.Frequencies)
+        FilePath = self.createFilePath(self.PlotDir, 'EdgeStats', 'GBC', FileName)
+        
+        print('Plotting Diff Plots')
+        with PdfPages(FilePath) as pdf: 
+            for Freq in self.FrequencyBands.keys():
+                analysis = dabest.load(df_wide, idx=("Control", "FEP"), x='Group', y=Freq) 
+                fig, ax = plt.subplots(figsize=(12,8))
+                ax = analysis.mean_diff.plot()
+                pdf.savefig()
+                print(f'Freq: {Freq}\n', analysis.hedges_g.results)
+
     def plot_NBS_comp(self, file):
         """
         Plot component of NBS analysis in circle
@@ -232,7 +251,7 @@ class visualization(MEGManager):
             for Measure in self.GraphMeasures.keys():
                 sns.set_theme(style="whitegrid")
                 fig, ax = plt.subplots(figsize=(12,8))
-                ax = sns.bocplot(x="Frequency", y=Measure, hue="Group", data=df, palette="Set2")
+                ax = sns.boxplot(x="Frequency", y=Measure, hue="Group", data=df, palette="Set2")
                 ax.set_title(Measure)
                 pdf.savefig()
 
