@@ -5,19 +5,26 @@ rsMEGDir = r'/mnt/raid/data/SFB1315/SCZ/rsMEG'
 # Configure path to repos and scripts
 repoDir = os.path.join(rsMEGDir, 'code')
 NetDir = os.path.join(repoDir, 'Network')
+SignalDir = os.path.join(repoDir, 'Signal')
 utilsDir = os.path.join(repoDir, 'utils')
 
 # adds NetDir to sys.path, network module can be imported easily
 import sys
 sys.path.append(NetDir)
+sys.path.append(SignalDir)
 sys.path.append(utilsDir)
 
 # Specify Parent Directory and Data Directory
 ParentDir = os.path.join(rsMEGDir, 'Analysis')
 DataDir = os.path.join(rsMEGDir, 'rsMEG-Data')
 DTIDir = os.path.join(rsMEGDir, 'DTI-Data')
+BehavDir = os.path.join(rsMEGDir, 'Behavioral-Data')
 
-#Infor File
+# Behavioral Files
+DemoFile = os.path.join(BehavDir, 'Logfile_subjects_RSdata_NOV2020_clinical_demographic_data.xlsx')
+BehavFile = os.path.join(BehavDir, 'Logfile_subjects_RSdata_SUMMER2020_clinical_data.xlsx')
+
+#Info File
 InfoDir = os.path.join(rsMEGDir, 'Info')
 InfoFileName = 'Info.xlsx'
 InfoFile = os.path.join(InfoDir, InfoFileName)

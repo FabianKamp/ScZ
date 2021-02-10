@@ -3,12 +3,16 @@ from utils.FileManager import MEGManager
 import Z_config as config
 import network as net
 from time import time
+import time
 import itertools
 from bct.nbs import nbs_bct
 import pandas as pd
 import scipy
 from multiprocessing import Pool
 from V_Visualization import visualization
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib.backends.backend_pdf import PdfPages
 import dabest
 from mne.stats import bonferroni_correction, fdr_correction
 
@@ -16,6 +20,10 @@ class analyzer(MEGManager):
 	"""
 	Class to compute edge statistics of Functional Connectivity Matrix
 	"""
+	def __init__(self):
+		# Load visualization
+		super().__init__()
+		self.viz = visualization()
 	
 	def calc_mean_edge(self):
 		"""
@@ -43,30 +51,35 @@ class analyzer(MEGManager):
 		
 		print('Mean edge dataframe created.')
 	
-	def excl_outliers(self):
+	def excl_outliers(self, method='IQR'):
 		"""
 		Calculates outliers based on mean edge value using the +/- 3*IQR as threshold.
 		"""
 		mean_edge_df = pd.read_pickle(self.find(suffix='Mean-Edge-Weights',filetype='.pkl', Freq=self.Frequencies))
-		list_extreme = []
 		for Group in ['Control','FEP']:
 			df_split = mean_edge_df[mean_edge_df['Group']==Group]
-			# Get inter quartile range for each group
-			Q1 = df_split.quantile(0.25)
-			Q3 = df_split.quantile(0.75)
-			IQR = Q3 - Q1
-			mask = (df_split > Q3 + 3 * IQR)|(df_split < Q1 - 3 * IQR)
-			extreme = df_split[mask.any(axis=1)]
-			extreme = set(extreme['Subject'])
+			if method=='IQR':
+				# Get inter quartile range for each group
+				Q1 = df_split.quantile(0.25)
+				Q3 = df_split.quantile(0.75)
+				IQR = Q3 - Q1
+				mask = (df_split > Q3 + 3 * IQR)|(df_split < Q1 - 3 * IQR)
+				extreme = df_split[mask.any(axis=1)]
+				extreme = set(extreme['Subject'])
+			elif method=='Z-scores': 
+				# Using Z-Scores to identify outliers				
+				mask = np.abs(scipy.stats.zscore(df_split[self.FrequencyBands.keys()], axis=0)) > 3
+				extreme = df_split[mask.any(axis=-1)]
+				extreme = set(extreme['Subject'])
 			
 			#Remove Extreme Values from Subject Lists
 			if len(extreme)>0:
 				print(f'Removing Subjects: {extreme} from Group: {Group}')
 				self.SubjectList = list(set(self.SubjectList) - extreme)
 				self.GroupIDs[Group] = list(set(self.GroupIDs[Group])-extreme)
-				list_extreme.extend(extreme)
 		
-		print('Excluded Subjets: ', list_extreme)
+		# Time to read outliers
+		time.sleep(5)
 
 	def stack_fcs(self):
 		"""
@@ -266,6 +279,36 @@ class analyzer(MEGManager):
 		FilePath = self.createFilePath(self.EdgeStatsDir, 'GBC', FileName)
 		df.to_pickle(FilePath)
 	
+	def fdr_correction(self, pvals, alpha):
+		"""
+		False Detection rate correction for multiple comparison.
+		:return array of rejected test
+		""" 
+		pvals = np.array(pvals)
+		m = len(pvals)
+		# Get ranks
+		ranks = np.zeros(pvals.shape)
+		ranks[pvals.argsort()] = np.arange(m)		
+		# true/false list if null hypothesis is rejected 
+		rejected = np.array([pval<=(rank+1)/m*alpha for pval, rank in zip(pvals,ranks)])
+		if not np.any(rejected):
+			return rejected       
+		# largest rank for which null hypothesis is rejected
+		largest_k = np.max(ranks[rejected])
+		# set all ranks smaller than largest_k to True
+		rejected = ranks<=largest_k
+		return rejected
+
+	def bonferroni_correction(self, pvals, alpha):
+		"""
+		Bonferroni correction for multiple comparison
+		:return array of rejected test, array of corrected p-values
+		""" 
+		pvals = np.array(pvals) * len(pvals)
+		pvals[pvals>=1] = 1.0
+		rejected = pvals<alpha    
+		return rejected, pvals
+	
 	def dabest_region_GBC(self):
 		"""
 		Compute regionwise t-test between global connectivity values
@@ -282,40 +325,46 @@ class analyzer(MEGManager):
 			freq_df = pd.concat(freq_list)
 			freq_df['Frequency'] = Freq
 
-			# Correct Bootstrapped p-values
-			_, t_bon_corrected = bonferroni_correction(freq_df['pvalue_students_t'], alpha=0.05)
-			_, t_fdr_corrected = fdr_correction(freq_df['pvalue_students_t'], alpha=0.05, method='indep')
-			freq_df['t_bon_corrected'] = t_bon_corrected
-			freq_df['t_fdr_corrected'] = t_fdr_corrected
+			# Correct Bootstrapped p-values for multiple comparisons
+			t_bonferroni_result, t_bonferroni_pval = self.bonferroni_correction(freq_df['pvalue_students_t'], alpha=0.05)
+			t_fdr_result = self.fdr_correction(freq_df['pvalue_students_t'], alpha=0.05)
+			freq_df['t_bonferroni_result'] = t_bonferroni_result
+			freq_df['t_bonferroni_pval'] = t_bonferroni_pval
+			freq_df['t_fdr_result'] = t_fdr_result
+
+			welch_bonferroni_result, welch_bonferroni_pval = self.bonferroni_correction(freq_df['pvalue_welch'], alpha=0.05)
+			welch_fdr_result = self.fdr_correction(freq_df['pvalue_welch'], alpha=0.05)
+			freq_df['welch_bonferroni_result'] = welch_bonferroni_result
+			freq_df['welch_bonferroni_pval'] = welch_bonferroni_pval
+			freq_df['welch_fdr_result'] = welch_fdr_result
 			
-			_, welch_bon_corrected = bonferroni_correction(freq_df['pvalue_welch'], alpha=0.05)
-			_, welch_fdr_corrected = fdr_correction(freq_df['pvalue_welch'], alpha=0.05, method='indep')
-			freq_df['welch_bon_corrected'] = welch_bon_corrected
-			freq_df['welch_fdr_corrected'] = welch_fdr_corrected
-
-			_, mann_whit_bon_corrected = bonferroni_correction(freq_df['pvalue_mann_whitney'], alpha=0.05)
-			_, mann_whit_fdr_corrected = fdr_correction(freq_df['pvalue_mann_whitney'], alpha=0.05, method='indep')
-			freq_df['mann_whit_bon_corrected'] = mann_whit_bon_corrected
-			freq_df['mann_whit_fdr_corrected'] = mann_whit_fdr_corrected
-
+			mann_whit_bonferroni_result, mann_whit_bonferroni_pval = self.bonferroni_correction(freq_df['pvalue_mann_whitney'], alpha=0.05)
+			mann_whit_fdr_result = self.fdr_correction(freq_df['pvalue_mann_whitney'], alpha=0.05)
+			freq_df['mann_whit_bonferroni_result'] = mann_whit_bonferroni_result
+			freq_df['mann_whit_bonferroni_pval'] = mann_whit_bonferroni_pval
+			freq_df['mann_whit_fdr_result'] = mann_whit_fdr_result
+			
+			# Append to list of results
 			dabest_list.append(freq_df)
 
 		# Dabest Dataframe
-		dabest_df = pd.concat(dabest_list)		
-
+		dabest_df = pd.concat(dabest_list)
 		# Save DABEST Results
 		FileName = self.createFileName(suffix='GBC-Region-DABEST',filetype='.pkl', Freq=self.Frequencies)
 		FilePath = self.createFilePath(self.EdgeStatsDir, 'GBC', 'Stats', FileName)
 		dabest_df.to_pickle(FilePath)
 	
 	def _parallel_region_dabest(self, Region, Freq):
+		"""
+		Compute Regionwise differences.
+		"""
 		print(f'DABEST on region {Region}, Frequency: {Freq}')
 		df_pivot = self.GBC_df.pivot(index=['Subject', 'Group'], columns='Frequency', values=Region).reset_index()
 		# Bootstrap test with DABEST
 		analysis = dabest.load(df_pivot, idx=("Control", "FEP"), x='Group', y=Freq, ci=90)
 		results = analysis.mean_diff.results
 		# Levene Test
-		_, pval = scipy.stats.levene(df_pivot.loc[df_pivot['Group']=='Control', Freq], df_pivot.loc[df_pivot['Control']=='Control', Freq])
+		_, pval = scipy.stats.levene(df_pivot.loc[df_pivot['Group']=='Control', Freq], df_pivot.loc[df_pivot['Group']=='Control', Freq])
 		results['levene-p-value'] = pval
 		# Insert Region Name in result df
 		results.insert(loc=0, column='Region', value=Region)
@@ -425,5 +474,7 @@ class analyzer(MEGManager):
 		# Insert Region Name in result df
 		results.insert(loc=0, column='Measure', value=Measure)
 		return results
+	
+
 
 

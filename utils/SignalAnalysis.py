@@ -1,18 +1,15 @@
 import numpy as np
-import Z_config as config
 from mne.filter import filter_data, next_fast_len
 from scipy.signal import hilbert
 from multiprocessing import Pool
 import timeit
 from utils.ConnFunc import *
 
-
-
 class Signal():
 	"""This class handles the signal analysis - band pass filtering,
 	amplitude extraction and low-pass filtering the amplitude 
 	"""
-	def __init__(self, mat, fsample=None):
+	def __init__(self, mat, fsample=None, lowpass=None):
 		"""
 		Initialize the signal object with a signal matrix
 		:param mat: n (regions) x p (timepoints) numpy ndarray containing the signal
@@ -20,7 +17,8 @@ class Signal():
 		assert isinstance(mat, np.ndarray), "Signal must be numpy array"
 		self.Signal = mat
 		self.fsample = fsample
-		self.NumberRegions, self.TimePoints = mat.shape
+		self.lowpass = lowpass
+		self.NumberRegions, self.TimePoints = mat.shape		
 
 	def __getitem__(self, index):
 		return self.Signal[index]
@@ -68,7 +66,7 @@ class Signal():
 		self.NumberRegions, self.TimePoints = self.Signal.shape
 		return self.Signal
 
-	def getFC(self, Limits, pad=100, processes=1):
+	def getFC(self, Limits, conn_mode):
 		"""
 		Computes the Functional Connectivity Matrix based on the signal envelope
 		Takes settings from configuration File. If conn_mode contains 
@@ -80,13 +78,14 @@ class Signal():
 		# Get complex signal
 		n_fft = next_fast_len(self.TimePoints)
 		ComplexSignal = hilbert(FilteredSignal, N=n_fft, axis=-1)[:, :self.TimePoints]
+		pad=100
 		ComplexSignal = ComplexSignal[:,pad:-pad]
 
 		# Get signal envelope
 		SignalEnv = np.abs(ComplexSignal)
 		
 		# If no conn_mode is specified, unorthogonalized FC is computed.
-		if config.conn_mode == 'corr':
+		if conn_mode == 'corr':
 			FC = pearson(SignalEnv, SignalEnv)
 			return FC
 
@@ -94,7 +93,7 @@ class Signal():
 		ConjdivEnv = SignalConj/SignalEnv 
 
 		# Compute orthogonalization and correlation in parallel		
-		with Pool(processes=processes) as p: 
+		with Pool(processes=10) as p: 
 			result = p.starmap(self._parallel_orth_corr, [(Complex, SignalEnv, ConjdivEnv) for Complex in ComplexSignal])
 		FC = np.array(result)
 
@@ -112,10 +111,10 @@ class Signal():
 		OrthSignal = (ComplexSignal * ConjdivEnv).imag
 		OrthEnv = np.abs(OrthSignal)
 		# Envelope Correlation
-		if 'lowpass' in config.conn_mode:
+		if 'lowpass' in conn_mode:
 			# Low-Pass filter
-			OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
-			SignalEnv = filter_data(SignalEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)	
+			OrthEnv = filter_data(OrthEnv, self.fsample, 0, self.lowpass, fir_window='hamming', verbose=False)
+			SignalEnv = filter_data(SignalEnv, self.fsample, 0, self.lowpass, fir_window='hamming', verbose=False)	
 		corr_mat = pearson(OrthEnv, SignalEnv)	
 		corr = np.diag(corr_mat)
 		return corr
@@ -125,7 +124,7 @@ class Signal():
 		Function to compute the Orthogonalized Envelope of the indexed signal with respect to a reference signal.
 		Is used create a plot the orthogonalized Envelope.
 		"""
-		Limits = config.FrequencyBands[FreqBand]
+		Limits = FreqBand
 		# Filter signal
 		FilteredSignal = self.getFrequencyBand(Limits)
 		# Get complex signal
@@ -141,8 +140,8 @@ class Signal():
 		OrthEnv = np.abs(OrthSignal)
 
 		if LowPass:
-			OrthEnv = filter_data(OrthEnv, self.fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
-			ReferenceEnv = filter_data(SignalEnv[ReferenceIndex], self.fsample, 0, config.LowPassFreq, fir_window='hamming', verbose=False)
+			OrthEnv = filter_data(OrthEnv, self.fsample, 0, self.lowpass, fir_window='hamming', verbose=False)
+			ReferenceEnv = filter_data(SignalEnv[ReferenceIndex], self.fsample, 0, self.lowpass, fir_window='hamming', verbose=False)
 		else:
 			ReferenceEnv = SignalEnv
 
@@ -158,7 +157,7 @@ class Signal():
 		# Demean envelope
 		envelope -= np.mean(envelope, axis=-1, keepdims=True)
 		# Low pass filter envelope
-		l_envelope = Signal(envelope, fsample=self.fsample).getFrequencyBand(Limits=[0, config.LowPassFreq])
+		l_envelope = Signal(envelope, fsample=self.fsample).getFrequencyBand(Limits=[0, self.lowpass])
 		
 		# Compute the Kuramoto Parameter
 		analytic = hilbert(l_envelope, axis=-1)
@@ -181,7 +180,7 @@ class Signal():
 		# Demean envelope
 		envelope -= np.mean(envelope, axis=-1, keepdims=True)
 		# Low pass filter envelope
-		l_envelope = Signal(envelope, fsample=self.fsample).getFrequencyBand(Limits=[0, config.LowPassFreq])
+		l_envelope = Signal(envelope, fsample=self.fsample).getFrequencyBand(Limits=[0, self.lowpass])
 		# Call the downsampling function twice to downsample to DownFreq
 		ld_envelope = Signal(l_envelope, fsample=self.fsample).resampleSignal(TargetFreq=DownFreq)
 		# Calculate V and CCD. 

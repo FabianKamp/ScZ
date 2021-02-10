@@ -11,7 +11,7 @@ if __name__ == "__main__":
 	#analyz.calc_mean_edge()
 	#viz.plot_mean_edge()
 
-	analyz.excl_outliers()
+	analyz.excl_outliers(method='IQR')
 
 	#analyz.stack_fcs()
 	#viz.plot_edge_dist()
@@ -26,12 +26,15 @@ if __name__ == "__main__":
 	#viz.plot_avg_GBC_diff()
 	#viz.plot_avg_GBC()
 	
-	analyz.calc_nbs()
+	#analyz.calc_nbs()
 	#analyz.dabest_avg_GBC()
 	#analyz.dabest_region_GBC()
 	
 	#analyz.calc_net_measures()
 	#viz.plot_net_measures()
 	#analyz.dabest_net_measures()
+
+	analyz.regr_gaf_avg_GBC()
+
 	end = time()
 	print('Time: ', end-start)

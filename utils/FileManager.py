@@ -17,6 +17,8 @@ class FileManager():
         self.DataDir = config.DataDir
         self.InfoFile = config.InfoFile
         self.NetDir = config.NetDir
+        self.DemoFile = config.DemoFile
+        self.BehavFile = config.BehavFile
 
         # Get Group IDs from Info sheet
         ControlIDs = self.getGroupIDs('CON')
@@ -134,6 +136,52 @@ class FileManager():
             Group = None
             print(f'{SubjectNum} not found in {config.InfoFileName}')
         return Group
+    
+    def getDemographics(self): 
+        """
+        Loads Demographic Data
+        :return pd.DataFrame
+        """
+        with pd.ExcelFile(self.DemoFile) as xls:
+            df_control = pd.read_excel(xls, 'CON')
+            df_fep = pd.read_excel(xls, 'FEP')
+        # Cut of rows and set columns - Control Group
+        columns = list(df_control.iloc[2,1:])
+        df_control = df_control.iloc[3:,1:]
+        df_control.columns=columns
+        df_control['AP'] = np.NaN 
+        df_control['Group'] = 'Control'
+        df_control.reset_index(drop=True)
+        # Cut of rows and set columns - FEP Group
+        columns = list(df_fep.iloc[2,1:7])
+        df_fep_demo = df_fep.iloc[3:,1:7]
+        df_fep_demo.columns=columns
+        df_fep_demo['Group'] = 'FEP'
+        df_fep_demo.reset_index(drop=True)
+
+        # Concat dataframes
+        df_demo = pd.concat([df_control, df_fep_demo])
+        df_demo.rename(columns={'subjnr':'Subject'}, inplace=True)
+        df_demo.drop(columns='subjcode', inplace=True)
+        df_demo.rename(columns={'sex':'Gender', 'age':'Age'}, inplace=True)
+        df_demo['GAF'] = df_demo['GAF'].astype('float32')
+        return df_demo
+    
+    def getPANSS(self):
+        """
+        Loads PANSS scores of the schizophrenic patients
+        :return pd.DataFrame
+        """
+        with pd.ExcelFile(self.DemoFile) as xls:
+            df_fep = pd.read_excel(xls, 'FEP')
+        columns = df_fep.iloc[2,8:]
+        df_panss = df_fep.iloc[3:, 8:]
+        df_panss.columns = columns
+        df_panss.reset_index(drop=True)
+        df_panss.rename(columns={'subjnr':'Subject'}, inplace=True)
+        # change data type
+        df_panss[['POS','NEG', 'COG', 'EXC', 'DEP', 'TOTAL']] = df_panss[['POS','NEG', 'COG', 'EXC', 'DEP', 'TOTAL']].astype('float32')
+        return df_panss
     
     def getRegionNames(self):
         AAL2File = config.AAL2NamesFile
